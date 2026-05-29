@@ -5,13 +5,7 @@ import { RotateCcw } from 'lucide-react'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as THREE from 'three'
-import {
-  forceSimulation,
-  forceLink,
-  forceManyBody,
-  forceCenter,
-  forceCollide,
-} from 'd3-force-3d'
+import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force-3d'
 import { type Node, type Edge } from '@xyflow/react'
 import { type KnowledgeNodeData, type KnowledgeEdgeData, type EntityType } from '@/types'
 import { ENTITY_COLORS } from './entityColors'
@@ -34,8 +28,6 @@ interface GLink {
   target: string | GNode
   label?: string
   __curveRot?: number
-  __lineObj?: any
-  __ownMat?: boolean
 }
 
 interface Props {
@@ -43,19 +35,11 @@ interface Props {
   edges: Edge<KnowledgeEdgeData>[]
   selectedNodeId: string | null
   onNodeSelect: (id: string | null) => void
+  visible?: boolean
 }
-
-const PHASES = [
-  'Information Sources',
-  'Entity Recognition',
-  'Relationship Generation',
-  'Map Formation',
-  'Node Expansion',
-]
 
 const idOf = (end: string | GNode) => (typeof end === 'object' ? end.id : end)
 
-// White soft radial glow (tinted per-node via material.color).
 let glowTex: THREE.Texture | null = null
 function getGlowTexture(): THREE.Texture {
   if (glowTex) return glowTex
@@ -77,6 +61,7 @@ export default function ThreeDSpaceGraphInner({
   edges,
   selectedNodeId,
   onNodeSelect,
+  visible = true,
 }: Props) {
   const fgRef = useRef<any>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -85,10 +70,12 @@ export default function ThreeDSpaceGraphInner({
   const timersRef = useRef<number[]>([])
   const [size, setSize] = useState({ w: 0, h: 0 })
 
-  const [phase, setPhase] = useState(4)
-  const [linkCount, setLinkCount] = useState(999)
-  const [playing, setPlaying] = useState(false)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
+  // Replay = step-by-step build of ONE node's relationships.
+  const [replayMode, setReplayMode] = useState<'focus' | 'global' | null>(null)
+  const [replayFocus, setReplayFocus] = useState<string | null>(null)
+  const [replayStep, setReplayStep] = useState(0)
+  const playing = replayMode !== null
 
   useEffect(() => {
     const el = wrapRef.current
@@ -99,9 +86,7 @@ export default function ThreeDSpaceGraphInner({
     return () => ro.disconnect()
   }, [])
 
-  // Pre-settle a 3D layout synchronously, then PIN it. The render engine never
-  // runs (warmup/cooldown 0), so the map is static & framed from frame one —
-  // no warmup delay, no sudden zoom.
+  // Pre-settle a 3D layout synchronously, then PIN it (static, framed, no jitter).
   const nodesArr = useMemo<GNode[]>(() => {
     const deg = new Map<string, number>()
     edges.forEach((e) => {
@@ -141,36 +126,55 @@ export default function ThreeDSpaceGraphInner({
     [edges]
   )
 
-  const hubId = useMemo(() => {
-    let best = ''
-    let bestDeg = -1
-    nodesArr.forEach((n) => {
-      if (n.deg > bestDeg) {
-        bestDeg = n.deg
-        best = n.id
-      }
-    })
-    return best
-  }, [nodesArr])
 
-  const visibleLinks = useMemo(
-    () => (phase >= 2 ? linksAll.slice(0, linkCount) : []),
-    [phase, linkCount, linksAll]
+  // The focus node's relationship links (ordered) — used by Replay.
+  const focusLinks = useMemo(
+    () =>
+      replayFocus
+        ? linksAll.filter((l) => idOf(l.source) === replayFocus || idOf(l.target) === replayFocus)
+        : [],
+    [replayFocus, linksAll]
   )
+
+  // Links shown: during replay only the focus node's links, revealed one by one.
+  const visibleLinks = useMemo(() => {
+    if (replayMode === 'focus') return focusLinks.slice(0, replayStep)
+    if (replayMode === 'global') return linksAll.slice(0, replayStep)
+    return linksAll
+  }, [replayMode, focusLinks, linksAll, replayStep])
   const graphData = useMemo(() => ({ nodes: nodesArr, links: visibleLinks }), [nodesArr, visibleLinks])
 
-  // Hover takes priority over click for the highlight (like the 2D view).
-  const activeNodeId = hoveredNodeId ?? selectedNodeId
+  // Active node (focus replay → focus; global replay → none; else hover/select).
+  const baseActive = hoveredNodeId ?? selectedNodeId
+  const activeId = replayMode === 'focus' ? replayFocus : replayMode === 'global' ? null : baseActive
 
-  const neighborIds = useMemo(() => {
+  const neighborSet = useMemo(() => {
     const s = new Set<string>()
-    if (!activeNodeId) return s
+    if (replayMode === 'focus') {
+      focusLinks.slice(0, replayStep).forEach((l) => {
+        s.add(idOf(l.source) === replayFocus ? idOf(l.target) : idOf(l.source))
+      })
+      return s
+    }
+    if (replayMode === 'global' || !activeId) return s
     edges.forEach((e) => {
-      if (e.source === activeNodeId) s.add(e.target)
-      if (e.target === activeNodeId) s.add(e.source)
+      if (e.source === activeId) s.add(e.target)
+      if (e.target === activeId) s.add(e.source)
     })
     return s
-  }, [activeNodeId, edges])
+  }, [replayMode, focusLinks, replayStep, replayFocus, activeId, edges])
+
+  // Global replay: nodes light up as they get connected (in time order).
+  const globalBright = useMemo(() => {
+    if (replayMode !== 'global') return null
+    const s = new Set<string>()
+    if (nodesArr[0]) s.add(nodesArr[0].id)
+    linksAll.slice(0, replayStep).forEach((l) => {
+      s.add(idOf(l.source))
+      s.add(idOf(l.target))
+    })
+    return s
+  }, [replayMode, replayStep, linksAll, nodesArr])
 
   const pinAll = useCallback(() => {
     nodesArr.forEach((n) => {
@@ -185,19 +189,16 @@ export default function ThreeDSpaceGraphInner({
     timersRef.current = []
   }, [])
 
-  // Default = static formed map (already pre-settled + pinned in nodesArr).
-  useEffect(() => {
-    clearTimers()
-    setPlaying(false)
-    setPhase(4)
-    setLinkCount(linksAll.length || 999)
-    fittedRef.current = false
-    return () => clearTimers()
-  }, [nodesArr, linksAll, clearTimers])
+  useEffect(() => () => clearTimers(), [clearTimers])
 
-  // Compute a camera distance that frames the whole (pre-settled) layout with
-  // margin, and set it directly — no delayed zoomToFit, so the graph appears at
-  // the right size from the first frame (no "sudden enlarge a few seconds in").
+  // Reset fit on dataset change.
+  useEffect(() => {
+    setReplayFocus(null)
+    setReplayStep(0)
+    fittedRef.current = false
+  }, [nodesArr])
+
+  // Frame the whole layout once (no delayed zoom → no sudden enlarge).
   const frameToFit = useCallback(
     (ms: number) => {
       const fg = fgRef.current
@@ -211,7 +212,7 @@ export default function ThreeDSpaceGraphInner({
       R += 24
       const fov = ((cam.fov ?? 50) * Math.PI) / 180
       const aspect = size.w / size.h || 1
-      const D = Math.max(R / Math.tan(fov / 2), R / (Math.tan(fov / 2) * aspect)) * 1.0
+      const D = Math.max(R / Math.tan(fov / 2), R / (Math.tan(fov / 2) * aspect)) * 0.82
       const c = fg.controls?.()
       if (c) {
         c.minDistance = Math.max(140, D * 0.5)
@@ -222,16 +223,26 @@ export default function ThreeDSpaceGraphInner({
     [nodesArr, size.w, size.h]
   )
 
+  // Frame on first paint AND whenever the viewport changes (mobile/desktop,
+  // orientation, window resize) so 3D always fits — incl. narrow phone screens.
+  // The Node Memory Panel is an overlay/bottom-sheet, so selecting a node does
+  // NOT resize this canvas → no refit/jitter on click.
+  // Fit on mount / size change / becoming visible only. NOT tied to `playing`,
+  // so finishing a Replay never re-frames the camera (no jump at the end).
   useEffect(() => {
-    if (playing || fittedRef.current || size.w === 0) return
-    const id = window.requestAnimationFrame(() => {
-      frameToFit(0)
-      fittedRef.current = true
-    })
+    if (!visible || size.w === 0) return
+    const id = window.requestAnimationFrame(() => frameToFit(0))
     return () => window.cancelAnimationFrame(id)
-  }, [size.w, size.h, playing, frameToFit])
+  }, [visible, size.w, size.h, frameToFit])
 
-  // Lighting + volumetric light dot-field (soft; once).
+  // Looser layout safeguard.
+  useEffect(() => {
+    const fg = fgRef.current
+    if (!fg) return
+    fg.d3Force('charge')?.strength(-180)
+  }, [size.w, size.h])
+
+  // Lighting + volumetric light dot-field (once).
   useEffect(() => {
     const fg = fgRef.current
     if (!fg) return
@@ -239,7 +250,6 @@ export default function ThreeDSpaceGraphInner({
     if (!scene || decoratedRef.current) return
     try {
       decoratedRef.current = true
-      // Strong ambient keeps node colours TRUE; point lights add the 3D gradient.
       scene.add(new THREE.AmbientLight(0xffffff, 0.95))
       const p1 = new THREE.PointLight(0xffffff, 0.7)
       p1.position.set(200, 240, 260)
@@ -273,131 +283,131 @@ export default function ThreeDSpaceGraphInner({
     }
   }, [size.w, size.h])
 
-  // Build each node ONCE (stable). Soft matte material; halo tinted node color.
-  const buildNode = useCallback(
-    (n: GNode) => {
-      const recognized = phase >= 1
-      const base = ENTITY_COLORS[n.entityType] ?? '#6366f1'
-      const radius = 4 + Math.min(n.deg, 6) + 3
+  // Build each node ONCE (stable; selection styling applied by mutation).
+  const buildNode = useCallback((n: GNode) => {
+    const base = ENTITY_COLORS[n.entityType] ?? '#6366f1'
+    const radius = 4 + Math.min(n.deg, 6) + 3
+    const group = new THREE.Group()
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(base),
+      roughness: 0.5,
+      metalness: 0,
+      emissive: new THREE.Color(base),
+      emissiveIntensity: 0.22,
+      transparent: true,
+      opacity: 1,
+    })
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 32), mat)
+    mesh.userData = { role: 'node', baseColor: base }
+    group.add(mesh)
 
-      const group = new THREE.Group()
-      // Lit sphere (real 3D shading gradient) + emissive floor so the shaded
-      // side keeps the TRUE colour (never darkens to brown). With strong ambient
-      // the colour stays accurate; the directional point lights add the 3D look.
-      const mat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(recognized ? base : '#c2c8d6'),
-        roughness: 0.5,
-        metalness: 0,
-        emissive: new THREE.Color(recognized ? base : '#c2c8d6'),
-        emissiveIntensity: 0.22,
+    const halo = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: getGlowTexture(),
+        color: new THREE.Color(base),
         transparent: true,
-        opacity: 1,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        opacity: 0,
       })
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 32), mat)
-      mesh.userData = { role: 'node', baseColor: base }
-      group.add(mesh)
+    )
+    halo.scale.set(radius * 7, radius * 7, 1)
+    halo.userData = { role: 'halo' }
+    halo.raycast = () => {}
+    group.add(halo)
 
-      const halo = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: getGlowTexture(),
-          color: new THREE.Color(base),
-          transparent: true,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          opacity: 0, // halo only shows on the SELECTED node (set in the effect)
-        })
-      )
-      halo.scale.set(radius * 7, radius * 7, 1)
-      halo.userData = { role: 'halo' }
-      halo.raycast = () => {} // big halo must NOT intercept hover/clicks
-      group.add(halo)
+    const sprite = new SpriteText(n.label)
+    sprite.color = '#334155'
+    sprite.textHeight = 3.6
+    sprite.fontWeight = '600'
+    ;(sprite as any).position.y = -(radius + 7)
+    sprite.userData = { role: 'label' }
+    ;(sprite as any).raycast = () => {}
+    group.add(sprite)
+    return group
+  }, [])
 
-      const sprite = new SpriteText(n.label)
-      sprite.color = recognized ? '#334155' : 'rgba(71,85,105,0.35)'
-      sprite.textHeight = 3.6
-      sprite.fontWeight = '600'
-      ;(sprite as any).position.y = -(radius + 7)
-      sprite.userData = { role: 'label' }
-      ;(sprite as any).raycast = () => {} // label must not intercept hover/clicks
-      group.add(sprite)
-      return group
-    },
-    [phase, hubId]
-  )
-
-  // Selection highlight: MUTATE materials only. Selected ball keeps its exact
-  // colour (no recolour, no emissive) — only a soft same-colour halo + others
-  // dim + connected links light up. No rebuild, no move → no jump.
+  // Highlight by mutation only (no rebuild / no move → no jitter).
   useEffect(() => {
     nodesArr.forEach((n) => {
       const obj = n.__threeObj
       if (!obj) return
-      const active = n.id === activeNodeId
-      const neighbor = neighborIds.has(n.id)
-      const dim = !!activeNodeId && !active && !neighbor
+      let active: boolean
+      let dim: boolean
+      if (globalBright) {
+        // Global replay: revealed nodes are bright, the rest fade in over time.
+        active = false
+        dim = !globalBright.has(n.id)
+      } else {
+        active = n.id === activeId
+        const neighbor = neighborSet.has(n.id)
+        dim = !!activeId && !active && !neighbor
+      }
       obj.children.forEach((ch: any) => {
         const role = ch.userData?.role
         if (role === 'node') {
           const m = ch.material
-          // Active/neighbour keep their TRUE colour; only unrelated nodes fade.
           m.color.set(dim ? '#cdd3e0' : ch.userData.baseColor)
           m.emissive?.set(dim ? '#000000' : ch.userData.baseColor)
           m.emissiveIntensity = dim ? 0 : 0.22
-          m.opacity = dim ? 0.16 : 1
+          m.opacity = dim ? 0.14 : 1
           m.needsUpdate = true
         } else if (role === 'halo') {
-          ch.material.opacity = active ? 0.85 : 0 // only the active (hovered/selected) node glows
+          ch.material.opacity = active ? 0.85 : 0
         } else if (role === 'label') {
-          // Active node's name grows + darkens (like the 2D hover); others normal/faded.
           const targetH = active ? 5.4 : 3.6
           if (ch.textHeight !== targetH) ch.textHeight = targetH
           ch.color = dim ? 'rgba(71,85,105,0.22)' : active ? '#0f172a' : '#334155'
         }
       })
     })
-  }, [activeNodeId, neighborIds, nodesArr, hubId, phase, linkCount])
+  }, [activeId, neighborSet, nodesArr, replayStep, globalBright])
 
   const handleNodeClick = useCallback(
     (node: GNode) => onNodeSelect(node.id === selectedNodeId ? null : node.id),
     [onNodeSelect, selectedNodeId]
   )
 
-  // Replay the evolution on demand.
-  const playEvolution = useCallback(() => {
+  // Replay:
+  //  • a node selected → build THAT node's relationships one connection at a time;
+  //  • nothing selected → build the WHOLE map, nodes/links appearing in time order.
+  const playReplay = useCallback(() => {
     clearTimers()
-    setPlaying(true)
-    fittedRef.current = true
-    nodesArr.forEach((n) => {
-      // Tighter scatter so the "Information Sources" start stays on-screen.
-      const r = 90 + Math.random() * 120
-      const th = Math.random() * Math.PI * 2
-      const ph = Math.acos(2 * Math.random() - 1)
-      n.x = r * Math.sin(ph) * Math.cos(th)
-      n.y = r * Math.cos(ph) * 0.7
-      n.z = r * Math.sin(ph) * Math.sin(th)
-      n.fx = n.fy = n.fz = undefined
-    })
-    setPhase(0)
-    setLinkCount(0)
-    fgRef.current?.d3ReheatSimulation?.()
-    // Frame the scattered nodes right away so the replay starts framed (not "broken").
-    window.requestAnimationFrame(() => frameToFit(400))
-    const total = linksAll.length
     const t = timersRef.current
-    t.push(window.setTimeout(() => setPhase(1), 900))
-    t.push(window.setTimeout(() => setPhase(2), 1800))
-    for (let i = 1; i <= total; i++) t.push(window.setTimeout(() => setLinkCount(i), 1800 + i * 220))
-    const mapAt = 1800 + total * 220 + 300
-    t.push(window.setTimeout(() => setPhase(3), mapAt))
-    t.push(
-      window.setTimeout(() => {
-        setPhase(4)
-        pinAll()
-        frameToFit(700)
-        setPlaying(false)
-      }, mapAt + 1200)
-    )
-  }, [nodesArr, linksAll, clearTimers, pinAll, frameToFit])
+    // Focus the picked node (selected OR currently touched/hovered). Only when
+    // nothing is picked does Replay build the whole map.
+    const focusCandidate = selectedNodeId ?? hoveredNodeId
+    if (focusCandidate) {
+      const focus = focusCandidate
+      const fl = linksAll.filter((l) => idOf(l.source) === focus || idOf(l.target) === focus)
+      setReplayMode('focus')
+      setReplayFocus(focus)
+      setReplayStep(0)
+      fl.forEach((_, i) => t.push(window.setTimeout(() => setReplayStep(i + 1), 500 + i * 750)))
+      t.push(
+        window.setTimeout(() => {
+          setReplayMode(null)
+          setReplayFocus(null)
+          setReplayStep(0)
+          onNodeSelect(focus)
+        }, 500 + fl.length * 750 + 500)
+      )
+    } else {
+      const total = linksAll.length
+      setReplayMode('global')
+      setReplayFocus(null)
+      setReplayStep(0)
+      for (let i = 1; i <= total; i++) {
+        t.push(window.setTimeout(() => setReplayStep(i), 400 + i * 550))
+      }
+      t.push(
+        window.setTimeout(() => {
+          setReplayMode(null)
+          setReplayStep(0)
+        }, 400 + total * 550 + 500)
+      )
+    }
+  }, [selectedNodeId, hoveredNodeId, linksAll, clearTimers, onNodeSelect])
 
   return (
     <div
@@ -406,27 +416,23 @@ export default function ThreeDSpaceGraphInner({
       style={{ background: 'radial-gradient(ellipse at 50% 42%, #ffffff 0%, #eef2fb 55%, #e6ebf6 100%)' }}
     >
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-        {/* Phase caption only while replaying the evolution (hidden when static) */}
         {playing && (
           <div
             className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #e5e7eb', backdropFilter: 'blur(6px)' }}
+            style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid #e5e7eb', backdropFilter: 'blur(6px)' }}
           >
-            <span className="flex gap-1">
-              {PHASES.map((_, i) => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= phase ? '#4f46e5' : '#d1d5db' }} />
-              ))}
-            </span>
             <span className="text-[11px] font-medium" style={{ color: '#4f46e5' }}>
-              {PHASES[phase]}
+              {replayMode === 'global'
+                ? `Building map · ${replayStep}/${linksAll.length}`
+                : `Building relationships · ${replayStep}/${focusLinks.length}`}
             </span>
           </div>
         )}
         <button
-          onClick={playEvolution}
-          title="Replay the evolution"
+          onClick={playReplay}
+          title="Replay how this node's relationships are built"
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium"
-          style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #e5e7eb', color: '#64748b' }}
+          style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid #e5e7eb', color: '#64748b' }}
         >
           <RotateCcw size={12} />
           Replay
@@ -444,7 +450,7 @@ export default function ThreeDSpaceGraphInner({
           controlType="orbit"
           enableNodeDrag={false}
           warmupTicks={0}
-          cooldownTicks={playing ? 2000 : 0}
+          cooldownTicks={0}
           nodeVal={(n: GNode) => 3 + Math.min(n.deg, 6)}
           nodeRelSize={6}
           nodeThreeObject={buildNode as any}
@@ -452,22 +458,20 @@ export default function ThreeDSpaceGraphInner({
           linkCurveRotation={(l: GLink) => l.__curveRot ?? 0}
           linkColor={(l: GLink) => {
             const touching =
-              !!activeNodeId && (idOf(l.source) === activeNodeId || idOf(l.target) === activeNodeId)
-            if (touching) return '#4338ca' // active relationship links: deep indigo
-            return activeNodeId ? 'rgba(150,160,185,0.10)' : 'rgba(120,134,170,0.36)'
+              !!activeId && (idOf(l.source) === activeId || idOf(l.target) === activeId)
+            if (touching) return '#4338ca'
+            return activeId ? 'rgba(150,160,185,0.10)' : 'rgba(110,124,160,0.55)'
           }}
-          linkWidth={1.4}
-          linkOpacity={0.85}
-          // Flow particles ONLY on the active node's relationship links (like 2D
-          // emphasis); slow & calm. Other links stay light/static.
+          linkWidth={0.7}
+          linkOpacity={0.8}
           linkDirectionalParticles={(l: GLink) =>
-            activeNodeId && (idOf(l.source) === activeNodeId || idOf(l.target) === activeNodeId) ? 3 : 0
+            activeId && (idOf(l.source) === activeId || idOf(l.target) === activeId) ? 3 : 0
           }
           linkDirectionalParticleWidth={2.2}
           linkDirectionalParticleColor="#4f46e5"
           linkDirectionalParticleSpeed={0.0025}
           onNodeClick={handleNodeClick as any}
-          onNodeHover={(n: any) => setHoveredNodeId(n ? n.id : null)}
+          onNodeHover={(n: any) => !playing && setHoveredNodeId(n ? n.id : null)}
           onBackgroundClick={() => onNodeSelect(null)}
         />
       )}

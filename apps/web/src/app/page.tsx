@@ -39,10 +39,10 @@ export default function Page() {
   // Mobile: left sidebar is an off-canvas drawer.
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // Explore in 3D. Work in 2D. — 2D is the default working view.
-  const [viewMode, setViewMode] = useState<ViewMode>('2d')
-  // 3D is mounted lazily on first use, then kept mounted (hidden) for stable switching.
-  const [mounted3D, setMounted3D] = useState(false)
+  // 3D Space is the default view; 2D Map stays available via the switcher.
+  const [viewMode, setViewMode] = useState<ViewMode>('3d')
+  // 3D mounted from the start (it's the default); both views stay mounted for stable switching.
+  const [mounted3D, setMounted3D] = useState(true)
 
   const baseDataset = DATASETS[demo]
 
@@ -106,11 +106,19 @@ export default function Page() {
     [demo, addedBatchIds]
   )
 
+  // On mobile the detail panel opens on demand (so the graph relationships are
+  // visible first); on desktop it opens automatically on selection.
+  const [panelOpen, setPanelOpen] = useState(false)
+
   // Selecting a node (on the canvas) takes over from a data-source focus.
-  const handleNodeSelect = useCallback((id: string | null) => {
-    setSelectedNodeId(id)
-    setFocusType(null)
-  }, [])
+  const handleNodeSelect = useCallback(
+    (id: string | null) => {
+      setSelectedNodeId(id)
+      setFocusType(null)
+      setPanelOpen(id ? !isMobile : false)
+    },
+    [isMobile]
+  )
 
   const selectedNodeData = useMemo<KnowledgeNodeData | null>(
     () => dataset.nodes.find((n) => n.id === selectedNodeId)?.data ?? null,
@@ -256,6 +264,7 @@ export default function Page() {
                 focusType={focusType}
                 focusNonce={focusNonce}
                 isMobile={isMobile}
+                visible={viewMode === '2d'}
               />
             </div>
             {mounted3D && (
@@ -268,16 +277,32 @@ export default function Page() {
                   edges={dataset.edges}
                   selectedNodeId={selectedNodeId}
                   onNodeSelect={handleNodeSelect}
+                  visible={viewMode === '3d'}
                 />
               </div>
+            )}
+
+            {/* Mobile: after selecting a node, show a button to open its details
+                (graph stays visible first; details on demand). */}
+            {isMobile && selectedNodeId && !panelOpen && (
+              <button
+                onClick={() => setPanelOpen(true)}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full text-[12px] font-semibold text-white shadow-lg"
+                style={{ background: '#4f46e5' }}
+              >
+                View details
+              </button>
             )}
           </main>
 
           <NodeMemoryPanel
-            node={selectedNodeData}
+            node={panelOpen ? selectedNodeData : null}
             nodeId={selectedNodeId}
             connectedNodes={connectedNodes}
-            onClose={() => setSelectedNodeId(null)}
+            onClose={() => {
+              setPanelOpen(false)
+              if (!isMobile) setSelectedNodeId(null)
+            }}
             isMobile={isMobile}
           />
         </div>

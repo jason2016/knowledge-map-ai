@@ -50,6 +50,7 @@ interface Props {
   focusType: EntityType | null
   focusNonce: number
   isMobile?: boolean
+  visible?: boolean
 }
 
 export function KnowledgeGraph({
@@ -61,6 +62,7 @@ export function KnowledgeGraph({
   focusType,
   focusNonce,
   isMobile,
+  visible = true,
 }: Props) {
   const { fitView } = useReactFlow()
   const nodesInitialized = useNodesInitialized()
@@ -160,6 +162,16 @@ export function KnowledgeGraph({
     )
     return () => window.cancelAnimationFrame(id)
   }, [nodesInitialized, rfNodes, fitView])
+
+  // Re-fit when this view becomes visible (e.g. switching back from 3D) so it
+  // never shows up tiny / off-size.
+  useEffect(() => {
+    if (!visible || !nodesInitialized) return
+    const id = window.requestAnimationFrame(() =>
+      fitView({ padding: 0.3, duration: 0, minZoom: 0.05, maxZoom: 1.2 })
+    )
+    return () => window.cancelAnimationFrame(id)
+  }, [visible, nodesInitialized, fitView])
 
   // ── Re-fit whenever the canvas resizes (mobile/desktop switch, rotation,
   //    window resize) so all nodes always stay framed. ──

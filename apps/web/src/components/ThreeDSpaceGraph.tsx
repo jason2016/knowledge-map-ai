@@ -21,6 +21,7 @@ interface Props {
   edges: Edge<KnowledgeEdgeData>[]
   selectedNodeId: string | null
   onNodeSelect: (id: string | null) => void
+  visible?: boolean
 }
 
 export function ThreeDSpaceGraph(props: Props) {

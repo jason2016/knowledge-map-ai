@@ -65,9 +65,9 @@ export function FloatingEdge({ source, target, label }: EdgeProps) {
           touching ? 'react-flow__edge-path km-edge-flow' : 'react-flow__edge-path'
         }
         style={{
-          stroke: touching ? '#6366f1' : '#cbd5e1',
+          stroke: touching ? '#6366f1' : '#9aa6bd',
           strokeWidth: touching ? 2 : 1.2,
-          strokeOpacity: touching ? 1 : 0.6,
+          strokeOpacity: touching ? 1 : 0.8,
           opacity: dim ? 0.15 : 1,
         }}
       />
