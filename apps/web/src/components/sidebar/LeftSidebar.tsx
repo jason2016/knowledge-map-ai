@@ -1,4 +1,5 @@
 'use client'
+import { X } from 'lucide-react'
 import { type DemoId, type EntityType } from '@/types'
 import { ENTITY_COLORS, ENTITY_LABELS } from '../graph/entityColors'
 
@@ -36,6 +37,8 @@ interface Props {
   focusType: EntityType | null
   onSourceFocus: (type: EntityType) => void
   onSourceAdd: (type: EntityType) => void
+  open: boolean
+  onClose: () => void
 }
 
 export function LeftSidebar({
@@ -46,6 +49,8 @@ export function LeftSidebar({
   focusType,
   onSourceFocus,
   onSourceAdd,
+  open,
+  onClose,
 }: Props) {
   const sources = SOURCES[demo]
   const filters = FILTERS[demo]
@@ -58,8 +63,25 @@ export function LeftSidebar({
         borderRight: '1px solid rgba(30,30,60,0.08)',
         flexShrink: 0,
       }}
-      className="h-full flex flex-col overflow-y-auto"
+      className={
+        'flex flex-col overflow-y-auto transition-transform duration-200 ' +
+        // Mobile: fixed off-canvas drawer below the 52px header. Desktop: static column.
+        'fixed top-[52px] bottom-0 left-0 z-40 shadow-xl ' +
+        'md:static md:top-auto md:z-auto md:h-full md:shadow-none ' +
+        (open ? 'translate-x-0' : '-translate-x-full') +
+        ' md:translate-x-0'
+      }
     >
+      {/* Mobile close button */}
+      <button
+        onClick={onClose}
+        className="md:hidden self-end m-2 p-1.5 rounded-md"
+        style={{ color: '#9494ad' }}
+        aria-label="Close menu"
+      >
+        <X size={16} />
+      </button>
+
       {/* Demo Vault */}
       <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid rgba(30,30,60,0.06)' }}>
         <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: '#9494ad' }}>

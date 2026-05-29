@@ -1,9 +1,11 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react'
+import { Menu } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
 import { NodeMemoryPanel } from '@/components/panel/NodeMemoryPanel'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { accountingNodes, accountingEdges } from '@/data/accounting'
 import { exhibitionNodes, exhibitionEdges } from '@/data/exhibition'
 import { EXTRAS } from '@/data/extras'
@@ -31,6 +33,9 @@ export default function Page() {
     accounting: [],
     exhibition: [],
   })
+  // Mobile: left sidebar is an off-canvas drawer.
+  const isMobile = useIsMobile()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const baseDataset = DATASETS[demo]
 
@@ -50,6 +55,7 @@ export default function Page() {
     setSelectedNodeId(null)
     setActiveFilters([])
     setFocusType(null)
+    setSidebarOpen(false)
   }, [])
 
   const handleFilterToggle = useCallback((type: EntityType) => {
@@ -63,6 +69,7 @@ export default function Page() {
     setSelectedNodeId(null)
     setFocusType(type)
     setFocusNonce((n) => n + 1)
+    setSidebarOpen(false)
   }, [])
 
   // Adding a data-source node: append the next unused batch of that type, then
@@ -77,6 +84,7 @@ export default function Page() {
         setSelectedNodeId(null)
         setFocusType(type)
         setFocusNonce((n) => n + 1)
+        setSidebarOpen(false)
         return
       }
       setAddedBatchIds((prev) => ({
@@ -84,6 +92,7 @@ export default function Page() {
         [demo]: [...prev[demo], next.node.id],
       }))
       setSelectedNodeId(null)
+      setSidebarOpen(false)
       setFocusType(type)
       setFocusNonce((n) => n + 1)
     },
@@ -132,33 +141,50 @@ export default function Page() {
           className="flex-shrink-0 flex items-center justify-between px-5"
           style={{ height: 52, background: '#ffffff', borderBottom: '1px solid rgba(30,30,60,0.08)' }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-1.5 -ml-1 rounded-lg flex-shrink-0"
+              style={{ color: '#475569' }}
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/clawshow-logo.png" alt="ClawShow" width={28} height={28} className="rounded-lg" />
-            <div className="flex flex-col leading-tight">
-              <span className="text-[14px] font-bold" style={{ color: '#1c1c2e' }}>
+            <img src="/clawshow-logo.png" alt="ClawShow" width={28} height={28} className="rounded-lg flex-shrink-0" />
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="text-[14px] font-bold truncate" style={{ color: '#1c1c2e' }}>
                 Knowledge Map AI
               </span>
-              <span className="text-[10.5px]" style={{ color: '#9494ad' }}>
+              <span className="hidden sm:block text-[10.5px]" style={{ color: '#9494ad' }}>
                 Turn scattered information into a living knowledge map.
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <span
-              className="text-[11px] px-2.5 py-1 rounded-full"
+              className="text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap"
               style={{ background: 'rgba(99,102,241,0.08)', color: '#4f46e5' }}
             >
-              Demo: {dataset.label}
+              <span className="hidden sm:inline">Demo: </span>{dataset.label}
             </span>
-            <span className="text-[11px]" style={{ color: '#9494ad' }}>
+            <span className="hidden sm:inline text-[11px]" style={{ color: '#9494ad' }}>
               by ClawShow AI
             </span>
           </div>
         </header>
 
-        {/* ── 3-column layout ── */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── 3-column layout (sidebar becomes an off-canvas drawer on mobile) ── */}
+        <div className="flex flex-1 min-h-0 overflow-hidden relative">
+          {/* Mobile backdrop */}
+          {isMobile && sidebarOpen && (
+            <div
+              className="fixed inset-0 z-30 bg-black/30 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+
           <LeftSidebar
             demo={demo}
             onDemoChange={handleDemoChange}
@@ -167,6 +193,8 @@ export default function Page() {
             focusType={focusType}
             onSourceFocus={handleSourceFocus}
             onSourceAdd={handleSourceAdd}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
           />
 
           <main className="flex-1 min-w-0 overflow-hidden">
@@ -178,6 +206,7 @@ export default function Page() {
               activeFilters={activeFilters}
               focusType={focusType}
               focusNonce={focusNonce}
+              isMobile={isMobile}
             />
           </main>
 
@@ -186,6 +215,7 @@ export default function Page() {
             nodeId={selectedNodeId}
             connectedNodes={connectedNodes}
             onClose={() => setSelectedNodeId(null)}
+            isMobile={isMobile}
           />
         </div>
       </div>

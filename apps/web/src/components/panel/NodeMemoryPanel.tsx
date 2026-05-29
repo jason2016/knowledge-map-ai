@@ -31,28 +31,58 @@ interface Props {
   nodeId: string | null
   connectedNodes: ConnectedNodeInfo[]
   onClose: () => void
+  isMobile?: boolean
 }
 
-export function NodeMemoryPanel({ node, nodeId, connectedNodes, onClose }: Props) {
+export function NodeMemoryPanel({ node, nodeId, connectedNodes, onClose, isMobile }: Props) {
   const color = node ? ENTITY_COLORS[node.entityType] : '#6366f1'
+
+  // Mobile: bottom sheet sliding up. Desktop: right side column sliding in.
+  const motionProps = isMobile
+    ? {
+        initial: { y: '100%', opacity: 0 },
+        animate: { y: 0, opacity: 1 },
+        exit: { y: '100%', opacity: 0 },
+      }
+    : {
+        initial: { x: '100%', opacity: 0 },
+        animate: { x: 0, opacity: 1 },
+        exit: { x: '100%', opacity: 0 },
+      }
+
+  const sheetStyle: React.CSSProperties = isMobile
+    ? {
+        background: '#ffffff',
+        borderTop: '1px solid rgba(30,30,60,0.08)',
+        boxShadow: '0 -8px 30px rgba(15,23,42,0.18)',
+      }
+    : {
+        width: 320,
+        background: '#ffffff',
+        borderLeft: '1px solid rgba(30,30,60,0.08)',
+        flexShrink: 0,
+      }
 
   return (
     <AnimatePresence>
       {node && (
         <motion.aside
           key={nodeId}
-          initial={{ x: '100%', opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '100%', opacity: 0 }}
+          {...motionProps}
           transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-          style={{
-            width: 320,
-            background: '#ffffff',
-            borderLeft: '1px solid rgba(30,30,60,0.08)',
-            flexShrink: 0,
-          }}
-          className="h-full flex flex-col overflow-hidden"
+          style={sheetStyle}
+          className={
+            isMobile
+              ? 'fixed bottom-0 inset-x-0 z-50 max-h-[70vh] rounded-t-2xl flex flex-col overflow-hidden'
+              : 'h-full flex flex-col overflow-hidden'
+          }
         >
+          {/* Mobile grab handle */}
+          {isMobile && (
+            <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+              <span className="w-9 h-1 rounded-full" style={{ background: '#d4d4dc' }} />
+            </div>
+          )}
           {/* Header */}
           <div className="px-5 py-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(30,30,60,0.07)' }}>
             <div className="flex items-start justify-between gap-2">

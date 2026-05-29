@@ -49,6 +49,7 @@ interface Props {
   activeFilters: EntityType[]
   focusType: EntityType | null
   focusNonce: number
+  isMobile?: boolean
 }
 
 export function KnowledgeGraph({
@@ -59,6 +60,7 @@ export function KnowledgeGraph({
   activeFilters,
   focusType,
   focusNonce,
+  isMobile,
 }: Props) {
   const { fitView } = useReactFlow()
   const nodesInitialized = useNodesInitialized()
@@ -68,6 +70,7 @@ export function KnowledgeGraph({
   const simRef = useRef<Simulation<SimNode, SimLink> | null>(null)
   const simNodesRef = useRef<SimNode[]>([])
   const fitPendingRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // ── Filtered node / edge sets ──
   const filteredNodes = useMemo(() => {
@@ -157,6 +160,25 @@ export function KnowledgeGraph({
     )
     return () => window.cancelAnimationFrame(id)
   }, [nodesInitialized, rfNodes, fitView])
+
+  // ── Re-fit whenever the canvas resizes (mobile/desktop switch, rotation,
+  //    window resize) so all nodes always stay framed. ──
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    let t: number | undefined
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(t)
+      t = window.setTimeout(() => {
+        fitView({ padding: isMobile ? 0.18 : 0.3, duration: 300, minZoom: 0.05, maxZoom: 1.2 })
+      }, 150)
+    })
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      window.clearTimeout(t)
+    }
+  }, [fitView, isMobile])
 
   // ── Ids of all nodes belonging to the focused data source (entity type) ──
   const focusNodeIds = useMemo(() => {
@@ -276,7 +298,7 @@ export function KnowledgeGraph({
 
   return (
     <GraphInteractionContext.Provider value={contextValue}>
-      <div className="w-full h-full relative" style={{ background: '#ffffff' }}>
+      <div ref={containerRef} className="w-full h-full relative" style={{ background: '#ffffff' }}>
         <ReactFlow
           nodes={sizedNodes}
           edges={floatingEdges}
@@ -305,21 +327,26 @@ export function KnowledgeGraph({
         >
           <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="#cbd5e1" />
           <Controls showInteractive={false} />
-          <MiniMap
-            pannable
-            zoomable
-            style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}
-            nodeColor={(n) =>
-              ENTITY_COLORS[(n.data as KnowledgeNodeData).entityType] ?? '#94a3b8'
-            }
-            nodeStrokeWidth={0}
-            maskColor="rgba(255,255,255,0.65)"
-          />
+          {!isMobile && (
+            <MiniMap
+              pannable
+              zoomable
+              style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}
+              nodeColor={(n) =>
+                ENTITY_COLORS[(n.data as KnowledgeNodeData).entityType] ?? '#94a3b8'
+              }
+              nodeStrokeWidth={0}
+              maskColor="rgba(255,255,255,0.65)"
+            />
+          )}
         </ReactFlow>
 
-        {/* ── Bottom-left legend ── */}
+        {/* ── Bottom-left legend (hidden on mobile to keep the map clean) ── */}
         <div
-          className="absolute bottom-4 left-4 flex flex-wrap gap-x-3 gap-y-1.5 px-3 py-2 rounded-xl max-w-[340px] pointer-events-none"
+          className={
+            (isMobile ? 'hidden ' : 'flex ') +
+            'absolute bottom-4 left-4 flex-wrap gap-x-3 gap-y-1.5 px-3 py-2 rounded-xl max-w-[340px] pointer-events-none'
+          }
           style={{
             background: 'rgba(255,255,255,0.9)',
             border: '1px solid #e5e7eb',
