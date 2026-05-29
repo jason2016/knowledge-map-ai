@@ -60,7 +60,7 @@ export function NodeMemoryPanel({ node, nodeId, connectedNodes, onClose, isMobil
         width: 320,
         background: '#ffffff',
         borderLeft: '1px solid rgba(30,30,60,0.08)',
-        flexShrink: 0,
+        boxShadow: '-10px 0 30px rgba(15,23,42,0.08)',
       }
 
   return (
@@ -74,7 +74,9 @@ export function NodeMemoryPanel({ node, nodeId, connectedNodes, onClose, isMobil
           className={
             isMobile
               ? 'fixed bottom-0 inset-x-0 z-50 max-h-[70vh] rounded-t-2xl flex flex-col overflow-hidden'
-              : 'h-full flex flex-col overflow-hidden'
+              : // Desktop: float OVER the graph (absolute) so selecting a node
+                // never resizes the canvas → no 2D/3D jitter on click.
+                'absolute right-0 top-0 bottom-0 z-30 flex flex-col overflow-hidden'
           }
         >
           {/* Mobile grab handle */}

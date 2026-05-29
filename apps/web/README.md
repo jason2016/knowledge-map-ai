@@ -6,6 +6,19 @@ by ClawShow AI · clawshow.ai/knowledge-map-ai
 
 ---
 
+## v0.2 — 3D Space View
+
+**Explore in 3D. Work in 2D.**
+
+A view switcher at the top of the graph area toggles between two views of the **same mock relationship data**:
+
+- **2D Map** *(default)* — the operational, everyday working view (force-directed white-theme graph, entity filters, data-source focus, Node Memory Panel).
+- **3D Space** — an exploration / customer-demo layer: nodes float in a dark "knowledge space", colored by entity type, with slow cinematic auto-rotation (pauses on interaction, resumes after a few seconds). Rotate, zoom, and click a node — clicking updates the **same right-hand Node Memory Panel** as 2D.
+
+Both views share the Accounting / Exhibition mock datasets. 3D is built with `react-force-graph-3d` (Three.js) and is loaded client-side only. Still **mock data only** — no backend, database, auth, or real AI.
+
+---
+
 ## Run the demo
 
 ```bash

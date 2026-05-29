@@ -4,8 +4,11 @@ import { Menu } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
+import { ThreeDSpaceGraph } from '@/components/ThreeDSpaceGraph'
 import { NodeMemoryPanel } from '@/components/panel/NodeMemoryPanel'
 import { useIsMobile } from '@/hooks/useIsMobile'
+
+type ViewMode = '2d' | '3d'
 import { accountingNodes, accountingEdges } from '@/data/accounting'
 import { exhibitionNodes, exhibitionEdges } from '@/data/exhibition'
 import { EXTRAS } from '@/data/extras'
@@ -36,6 +39,10 @@ export default function Page() {
   // Mobile: left sidebar is an off-canvas drawer.
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Explore in 3D. Work in 2D. — 2D is the default working view.
+  const [viewMode, setViewMode] = useState<ViewMode>('2d')
+  // 3D is mounted lazily on first use, then kept mounted (hidden) for stable switching.
+  const [mounted3D, setMounted3D] = useState(false)
 
   const baseDataset = DATASETS[demo]
 
@@ -197,17 +204,73 @@ export default function Page() {
             onClose={() => setSidebarOpen(false)}
           />
 
-          <main className="flex-1 min-w-0 overflow-hidden">
-            <KnowledgeGraph
-              nodes={dataset.nodes}
-              edges={dataset.edges}
-              selectedNodeId={selectedNodeId}
-              onNodeSelect={handleNodeSelect}
-              activeFilters={activeFilters}
-              focusType={focusType}
-              focusNonce={focusNonce}
-              isMobile={isMobile}
-            />
+          <main className="flex-1 min-w-0 overflow-hidden relative">
+            {/* View switcher: Explore in 3D, Work in 2D */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1">
+              <div
+                className="flex items-center gap-0.5 p-0.5 rounded-full"
+                style={{
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 2px 10px rgba(15,23,42,0.08)',
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                {(['2d', '3d'] as ViewMode[]).map((m) => {
+                  const active = viewMode === m
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => {
+                        setViewMode(m)
+                        if (m === '3d') setMounted3D(true)
+                      }}
+                      className="px-3 py-1 rounded-full text-[11.5px] font-medium transition-all duration-150"
+                      style={{
+                        background: active ? '#4f46e5' : 'transparent',
+                        color: active ? '#ffffff' : '#64748b',
+                      }}
+                    >
+                      {m === '2d' ? '2D Map' : '3D Space'}
+                    </button>
+                  )
+                })}
+              </div>
+              <span className="hidden sm:block text-[10px]" style={{ color: '#94a3b8' }}>
+                Explore relationships in 3D. Work with details in 2D.
+              </span>
+            </div>
+
+            {/* Both views stay MOUNTED; we only toggle visibility so switching
+                never re-lays-out / re-fits → no size jump on 2D↔3D switch. */}
+            <div
+              className="absolute inset-0"
+              style={{ visibility: viewMode === '2d' ? 'visible' : 'hidden' }}
+            >
+              <KnowledgeGraph
+                nodes={dataset.nodes}
+                edges={dataset.edges}
+                selectedNodeId={selectedNodeId}
+                onNodeSelect={handleNodeSelect}
+                activeFilters={activeFilters}
+                focusType={focusType}
+                focusNonce={focusNonce}
+                isMobile={isMobile}
+              />
+            </div>
+            {mounted3D && (
+              <div
+                className="absolute inset-0"
+                style={{ visibility: viewMode === '3d' ? 'visible' : 'hidden' }}
+              >
+                <ThreeDSpaceGraph
+                  nodes={dataset.nodes}
+                  edges={dataset.edges}
+                  selectedNodeId={selectedNodeId}
+                  onNodeSelect={handleNodeSelect}
+                />
+              </div>
+            )}
           </main>
 
           <NodeMemoryPanel

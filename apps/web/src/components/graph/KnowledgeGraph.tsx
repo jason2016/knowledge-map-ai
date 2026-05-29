@@ -156,7 +156,7 @@ export function KnowledgeGraph({
     if (!fitPendingRef.current || !nodesInitialized || rfNodes.length === 0) return
     fitPendingRef.current = false
     const id = window.requestAnimationFrame(() =>
-      fitView({ padding: 0.3, duration: 500, minZoom: 0.05, maxZoom: 1.2 })
+      fitView({ padding: 0.3, duration: 0, minZoom: 0.05, maxZoom: 1.2 })
     )
     return () => window.cancelAnimationFrame(id)
   }, [nodesInitialized, rfNodes, fitView])
@@ -167,10 +167,23 @@ export function KnowledgeGraph({
     const el = containerRef.current
     if (!el) return
     let t: number | undefined
+    let first = true
+    let last = { w: el.clientWidth, h: el.clientHeight }
     const ro = new ResizeObserver(() => {
+      // Skip the initial observation + no-op fires so we never re-fit (shrink)
+      // on page load — only on a genuine window/orientation size change.
+      const w = el.clientWidth
+      const h = el.clientHeight
+      if (first) {
+        first = false
+        last = { w, h }
+        return
+      }
+      if (w === last.w && h === last.h) return
+      last = { w, h }
       window.clearTimeout(t)
       t = window.setTimeout(() => {
-        fitView({ padding: isMobile ? 0.18 : 0.3, duration: 300, minZoom: 0.05, maxZoom: 1.2 })
+        fitView({ padding: isMobile ? 0.18 : 0.3, duration: 0, minZoom: 0.05, maxZoom: 1.2 })
       }, 150)
     })
     ro.observe(el)
@@ -312,7 +325,7 @@ export function KnowledgeGraph({
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           fitView
-          fitViewOptions={{ padding: 0.3, minZoom: 0.05 }}
+          fitViewOptions={{ padding: 0.3, minZoom: 0.05, maxZoom: 1.2 }}
           minZoom={0.1}
           maxZoom={2.5}
           nodesDraggable
