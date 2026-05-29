@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* ── React Flow light overrides ── */
+.react-flow {
+  background: #f8fafc !important;
+}
+.react-flow__background {
+  background-color: #f8fafc !important;
+}
+.react-flow__edge-path {
+  stroke: #cbd5e1;
+  stroke-opacity: 0.6;
+  stroke-width: 1;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: rgba(30, 30, 60, 0.4);
+}
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.react-flow__controls {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06) !important;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: #ffffff;
+  border: none;
+  border-bottom: 1px solid rgba(30, 30, 60, 0.07);
+  fill: rgba(30, 30, 60, 0.45);
+}
+.react-flow__controls-button:hover {
+  background: #f1f1f6;
+  fill: rgba(30, 30, 60, 0.85);
+}
+.react-flow__minimap {
+  border-radius: 10px;
+}
+.react-flow__node {
+  cursor: pointer;
+}
+
+/* Flowing dashed line for the active (hovered/selected) relationship path */
+@keyframes kmEdgeFlow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+.km-edge-flow {
+  stroke-dasharray: 6 4;
+  animation: kmEdgeFlow 0.6s linear infinite;
+}
+.react-flow__attribution {
+  display: none;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 30, 60, 0.12);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 30, 60, 0.22);
+}
