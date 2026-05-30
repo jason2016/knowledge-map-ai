@@ -58,24 +58,21 @@ export default function Page() {
   const [packUrl, setPackUrl] = useState<string | null>(null)
   const [activePackId, setActivePackId] = useState<string | null>(null)
 
-  // Context Pack vault — populated from /context-packs/index.json on mount.
-  // Falls back to a single static Neige Rouge entry if the index cannot be read.
-  const FALLBACK_VAULT: Array<ContextPackVaultEntry & { url: string }> = useMemo(
-    () => [
-      {
-        id: 'neige-rouge-static',
-        label: 'Neige Rouge Commercial Launch',
-        url: NEIGE_ROUGE_PACK_URL,
-        meta: 'static fallback',
-      },
-    ],
-    []
-  )
+  // Public Demo Mode vs Local Private Mode.
+  // The Context Pack vault is gated behind NEXT_PUBLIC_ENABLE_CONTEXT_PACKS so
+  // public deployments (map.clawshow.ai) never load /context-packs/index.json
+  // and never surface private packs in the UI.
+  // Set to "true" in apps/web/.env.local to enable local private mode.
+  // See docs/setup/2026-05-30-context-pack-exchange-setup.md.
+  const contextPacksEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_CONTEXT_PACKS === 'true'
+
   const [vaultPacks, setVaultPacks] = useState<
     Array<ContextPackVaultEntry & { url: string }>
-  >(FALLBACK_VAULT)
+  >([])
 
   useEffect(() => {
+    if (!contextPacksEnabled) return
     let cancelled = false
     loadContextPackIndex()
       .then((idx) => {
@@ -92,23 +89,19 @@ export default function Page() {
             meta: bits.join(' · ') || undefined,
           }
         })
-        // De-dupe by id; if the index already contains a Neige Rouge pack, drop
-        // the static fallback to avoid a double entry.
-        const indexHasNeige = fromIndex.some((p) => /neige-rouge/i.test(p.id))
-        const merged = indexHasNeige
-          ? fromIndex
-          : [...fromIndex, ...FALLBACK_VAULT]
         const seen = new Set<string>()
-        const deduped = merged.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+        const deduped = fromIndex.filter((p) =>
+          seen.has(p.id) ? false : (seen.add(p.id), true)
+        )
         setVaultPacks(deduped)
       })
       .catch(() => {
-        // Index unavailable — keep the static fallback already in state.
+        // Index unavailable — leave the vault empty (no private fallback).
       })
     return () => {
       cancelled = true
     }
-  }, [FALLBACK_VAULT])
+  }, [contextPacksEnabled])
 
   const loadPackByUrl = useCallback(async (id: string, url: string) => {
     setPackLoading(true)
@@ -303,24 +296,28 @@ export default function Page() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <button
-              onClick={handleLoadNeigeRouge}
-              disabled={packLoading}
-              title="Load the Neige Rouge Context Pack from Semantic OS"
-              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
-              style={{
-                background: pack ? '#4f46e5' : 'rgba(99,102,241,0.08)',
-                color: pack ? '#ffffff' : '#4f46e5',
-                border: '1px solid ' + (pack ? '#4f46e5' : 'rgba(99,102,241,0.20)'),
-                opacity: packLoading ? 0.6 : 1,
-              }}
-            >
-              {packLoading ? <Loader2 size={12} className="animate-spin" /> : <Package size={12} />}
-              <span className="hidden sm:inline">
-                {pack ? 'Neige Rouge loaded' : 'Load Neige Rouge Context Pack'}
-              </span>
-              <span className="sm:hidden">{pack ? 'Loaded' : 'Load Pack'}</span>
-            </button>
+            {/* Local-only test entry — hidden in Public Demo Mode so the public
+                deploy never references private Context Pack identifiers. */}
+            {contextPacksEnabled && (
+              <button
+                onClick={handleLoadNeigeRouge}
+                disabled={packLoading}
+                title="Load the Neige Rouge Context Pack from Semantic OS"
+                className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+                style={{
+                  background: pack ? '#4f46e5' : 'rgba(99,102,241,0.08)',
+                  color: pack ? '#ffffff' : '#4f46e5',
+                  border: '1px solid ' + (pack ? '#4f46e5' : 'rgba(99,102,241,0.20)'),
+                  opacity: packLoading ? 0.6 : 1,
+                }}
+              >
+                {packLoading ? <Loader2 size={12} className="animate-spin" /> : <Package size={12} />}
+                <span className="hidden sm:inline">
+                  {pack ? 'Neige Rouge loaded' : 'Load Neige Rouge Context Pack'}
+                </span>
+                <span className="sm:hidden">{pack ? 'Loaded' : 'Load Pack'}</span>
+              </button>
+            )}
             <span
               className="hidden md:inline text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap"
               style={{ background: 'rgba(99,102,241,0.08)', color: '#4f46e5' }}

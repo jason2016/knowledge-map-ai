@@ -145,3 +145,55 @@ See `.gitignore`.
 - All real files live in **one** authoritative place, `C:\Drive-semantic`, shared
   between Semantic OS (writer) and Knowledge Map AI (reader).
 - No HTTP server / API / database is introduced — this is just the filesystem.
+
+---
+
+## Public Demo Mode vs Local Private Mode
+
+Knowledge Map AI runs in one of two modes, controlled by a single env flag:
+
+| | **Public Demo Mode** *(default)* | **Local Private Mode** |
+|---|---|---|
+| Env flag | `NEXT_PUBLIC_ENABLE_CONTEXT_PACKS` unset / not `"true"` | `NEXT_PUBLIC_ENABLE_CONTEXT_PACKS=true` |
+| Where it runs | GitHub repo, Vercel, `map.clawshow.ai`, any public site | Jason's machine, a customer's private machine / server |
+| Reads `/context-packs/index.json`? | **No** | **Yes** |
+| Sidebar shows | Accounting Map + Exhibition Map only | Accounting Map + Exhibition Map + **Local Context Packs** from `C:\Drive-semantic` |
+| Top-right "Load Neige Rouge" test button | Hidden | Visible |
+| Source of truth | Built-in sanitized demo data | `C:\Drive-semantic\context-packs\` |
+
+### Rules
+
+- `map.clawshow.ai` is the **public demo only**. It must run in Public Demo Mode.
+- It should only show **Accounting Map** and **Exhibition Map**.
+- Real Context Packs stay in `C:\Drive-semantic\` — they never get pushed to
+  GitHub or to a public host.
+- The GitHub repository must **not** contain any generated private Context Pack
+  data (the junction and its backup are gitignored; `.env.local` is gitignored;
+  only `.env.local.example` is committed as a template).
+- Local / private users opt in by copying `apps/web/.env.local.example` to
+  `apps/web/.env.local` (`NEXT_PUBLIC_ENABLE_CONTEXT_PACKS=true`).
+- Production public deploys keep `NEXT_PUBLIC_ENABLE_CONTEXT_PACKS` **unset or
+  false**.
+
+### How the gate works
+
+- `apps/web/src/app/page.tsx` reads `process.env.NEXT_PUBLIC_ENABLE_CONTEXT_PACKS`
+  at render time. If it is not the exact string `"true"`, the page never calls
+  `loadContextPackIndex()` and never populates the Context Pack vault — there is
+  no fallback that surfaces private pack ids.
+- `apps/web/src/components/sidebar/LeftSidebar.tsx` only renders the
+  *"Local Context Packs"* sub-label when at least one pack entry is present,
+  which by construction only happens in Local Private Mode.
+
+### Quick check
+
+To verify which mode is active:
+
+```bash
+# In dev, before npm run dev:
+echo $NEXT_PUBLIC_ENABLE_CONTEXT_PACKS   # bash / git-bash
+echo $env:NEXT_PUBLIC_ENABLE_CONTEXT_PACKS  # PowerShell
+```
+
+Or open the app and look at the sidebar — if "Local Context Packs" appears, you
+are in Local Private Mode.

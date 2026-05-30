@@ -124,6 +124,14 @@ export function LeftSidebar({
               </button>
             )
           })}
+          {contextPacks.length > 0 && (
+            <p
+              className="text-[9px] uppercase tracking-widest mt-2 mb-1"
+              style={{ color: '#b4b4c4' }}
+            >
+              Local Context Packs
+            </p>
+          )}
           {contextPacks.map((p) => {
             const active = activePackId === p.id
             return (
