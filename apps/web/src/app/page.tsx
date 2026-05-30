@@ -1,12 +1,17 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react'
-import { Menu } from 'lucide-react'
+import { Menu, Package, Loader2 } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
 import { ThreeDSpaceGraph } from '@/components/ThreeDSpaceGraph'
 import { NodeMemoryPanel } from '@/components/panel/NodeMemoryPanel'
+import { ContextPackPanel } from '@/components/panel/ContextPackPanel'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { loadContextPack, NEIGE_ROUGE_PACK_URL } from '@/lib/contextPackLoader'
+import { type ContextPackVaultEntry } from '@/components/sidebar/LeftSidebar'
+import { contextPackToGraph, type ContextPackGraph } from '@/lib/contextPackToGraph'
+import { type ContextPack } from '@/types/context-pack'
 
 type ViewMode = '2d' | '3d'
 import { accountingNodes, accountingEdges } from '@/data/accounting'
@@ -44,10 +49,78 @@ export default function Page() {
   // 3D mounted from the start (it's the default); both views stay mounted for stable switching.
   const [mounted3D, setMounted3D] = useState(true)
 
+  // Context Pack state — loaded JSON + adapted graph. When set, takes over the canvas.
+  const [pack, setPack] = useState<ContextPack | null>(null)
+  const [packGraph, setPackGraph] = useState<ContextPackGraph | null>(null)
+  const [packLoading, setPackLoading] = useState(false)
+  const [packError, setPackError] = useState<string | null>(null)
+  const [packUrl, setPackUrl] = useState<string | null>(null)
+  const [activePackId, setActivePackId] = useState<string | null>(null)
+
+  // Static Context Pack vault — appears under DEMO VAULT in the left sidebar.
+  // Future: replace this constant with a fetch of /context-packs/index.json.
+  const PACK_VAULT: Array<ContextPackVaultEntry & { url: string }> = useMemo(
+    () => [
+      {
+        id: 'neige-rouge-2026-05-30',
+        label: 'Neige Rouge Commercial Launch',
+        url: NEIGE_ROUGE_PACK_URL,
+      },
+    ],
+    []
+  )
+
+  const loadPackById = useCallback(
+    async (id: string) => {
+      const entry = PACK_VAULT.find((p) => p.id === id)
+      if (!entry) return
+      setPackLoading(true)
+      setPackError(null)
+      try {
+        const p = await loadContextPack(entry.url)
+        setPack(p)
+        setPackGraph(contextPackToGraph(p))
+        setPackUrl(entry.url)
+        setActivePackId(id)
+        setSelectedNodeId(null)
+        setActiveFilters([])
+        setFocusType(null)
+        setSidebarOpen(false)
+      } catch (err) {
+        setPackError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setPackLoading(false)
+      }
+    },
+    [PACK_VAULT]
+  )
+
+  // Kept for the temporary top-right test button — delegates to the vault loader.
+  const handleLoadNeigeRouge = useCallback(
+    () => loadPackById('neige-rouge-2026-05-30'),
+    [loadPackById]
+  )
+
+  const handleClosePack = useCallback(() => {
+    setPack(null)
+    setPackGraph(null)
+    setPackUrl(null)
+    setActivePackId(null)
+    setSelectedNodeId(null)
+  }, [])
+
   const baseDataset = DATASETS[demo]
 
   // Merge base demo data with any newly-ingested nodes/edges for this demo.
+  // If a Context Pack is loaded, it takes over the canvas instead.
   const dataset = useMemo(() => {
+    if (packGraph && pack) {
+      return {
+        nodes: packGraph.nodes,
+        edges: packGraph.edges,
+        label: pack.target?.name ?? pack.pack_id,
+      }
+    }
     const added = EXTRAS[demo].filter((b) => addedBatchIds[demo].includes(b.node.id))
     if (added.length === 0) return baseDataset
     return {
@@ -55,7 +128,7 @@ export default function Page() {
       edges: [...baseDataset.edges, ...added.flatMap((b) => b.edges)],
       label: baseDataset.label,
     }
-  }, [demo, baseDataset, addedBatchIds])
+  }, [demo, baseDataset, addedBatchIds, packGraph, pack])
 
   const handleDemoChange = useCallback((id: DemoId) => {
     setDemo(id)
@@ -63,6 +136,11 @@ export default function Page() {
     setActiveFilters([])
     setFocusType(null)
     setSidebarOpen(false)
+    // Switching demo also clears any loaded Context Pack.
+    setPack(null)
+    setPackGraph(null)
+    setPackUrl(null)
+    setActivePackId(null)
   }, [])
 
   const handleFilterToggle = useCallback((type: EntityType) => {
@@ -177,14 +255,32 @@ export default function Page() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <button
+              onClick={handleLoadNeigeRouge}
+              disabled={packLoading}
+              title="Load the Neige Rouge Context Pack from Semantic OS"
+              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+              style={{
+                background: pack ? '#4f46e5' : 'rgba(99,102,241,0.08)',
+                color: pack ? '#ffffff' : '#4f46e5',
+                border: '1px solid ' + (pack ? '#4f46e5' : 'rgba(99,102,241,0.20)'),
+                opacity: packLoading ? 0.6 : 1,
+              }}
+            >
+              {packLoading ? <Loader2 size={12} className="animate-spin" /> : <Package size={12} />}
+              <span className="hidden sm:inline">
+                {pack ? 'Neige Rouge loaded' : 'Load Neige Rouge Context Pack'}
+              </span>
+              <span className="sm:hidden">{pack ? 'Loaded' : 'Load Pack'}</span>
+            </button>
             <span
-              className="text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap"
+              className="hidden md:inline text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap"
               style={{ background: 'rgba(99,102,241,0.08)', color: '#4f46e5' }}
             >
-              <span className="hidden sm:inline">Demo: </span>{dataset.label}
+              {dataset.label}
             </span>
-            <span className="hidden sm:inline text-[11px]" style={{ color: '#9494ad' }}>
+            <span className="hidden lg:inline text-[11px]" style={{ color: '#9494ad' }}>
               by ClawShow AI
             </span>
           </div>
@@ -210,6 +306,13 @@ export default function Page() {
             onSourceAdd={handleSourceAdd}
             open={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
+            contextPacks={PACK_VAULT.map((p) => ({
+              id: p.id,
+              label: p.label,
+              loading: packLoading && activePackId !== p.id,
+            }))}
+            activePackId={activePackId}
+            onPackClick={loadPackById}
           />
 
           <main className="flex-1 min-w-0 overflow-hidden relative">
@@ -293,12 +396,32 @@ export default function Page() {
                 View details
               </button>
             )}
+
+            {/* Context Pack panel (Summary / Causality / Actions / Sources). */}
+            {pack && <ContextPackPanel pack={pack} onClose={handleClosePack} />}
+
+            {/* Load error toast. */}
+            {packError && (
+              <div
+                className="absolute top-16 left-1/2 -translate-x-1/2 z-30 max-w-[460px] px-3 py-2 rounded-lg text-[11.5px]"
+                style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}
+              >
+                Failed to load Context Pack: {packError}
+                <button
+                  onClick={() => setPackError(null)}
+                  className="ml-2 underline"
+                >
+                  dismiss
+                </button>
+              </div>
+            )}
           </main>
 
           <NodeMemoryPanel
             node={panelOpen ? selectedNodeData : null}
             nodeId={selectedNodeId}
             connectedNodes={connectedNodes}
+            packUrl={packUrl}
             onClose={() => {
               setPanelOpen(false)
               if (!isMobile) setSelectedNodeId(null)

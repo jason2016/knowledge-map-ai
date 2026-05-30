@@ -29,6 +29,12 @@ const FILTERS: Record<DemoId, EntityType[]> = {
   exhibition: ['exhibition', 'exhibitor', 'visitor', 'lead', 'partner', 'booth', 'campaign', 'content', 'opportunity', 'followup'],
 }
 
+export interface ContextPackVaultEntry {
+  id: string
+  label: string
+  loading?: boolean
+}
+
 interface Props {
   demo: DemoId
   onDemoChange: (id: DemoId) => void
@@ -39,6 +45,10 @@ interface Props {
   onSourceAdd: (type: EntityType) => void
   open: boolean
   onClose: () => void
+  // Context Packs available in the vault, parallel to built-in demos.
+  contextPacks?: ContextPackVaultEntry[]
+  activePackId?: string | null
+  onPackClick?: (id: string) => void
 }
 
 export function LeftSidebar({
@@ -51,7 +61,13 @@ export function LeftSidebar({
   onSourceAdd,
   open,
   onClose,
+  contextPacks = [],
+  activePackId = null,
+  onPackClick,
 }: Props) {
+  // When a Context Pack is active, demo-specific sections (Information Sources,
+  // Entity Filters) don't apply — hide them to keep the sidebar clean.
+  const packActive = activePackId !== null
   const sources = SOURCES[demo]
   const filters = FILTERS[demo]
 
@@ -89,7 +105,8 @@ export function LeftSidebar({
         </p>
         <div className="flex flex-col gap-1">
           {(['accounting', 'exhibition'] as DemoId[]).map((id) => {
-            const active = demo === id
+            // A demo is "active" only when no Context Pack is loaded.
+            const active = !packActive && demo === id
             return (
               <button
                 key={id}
@@ -105,10 +122,36 @@ export function LeftSidebar({
               </button>
             )
           })}
+          {contextPacks.map((p) => {
+            const active = activePackId === p.id
+            return (
+              <button
+                key={p.id}
+                onClick={() => onPackClick?.(p.id)}
+                disabled={p.loading}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 flex items-center justify-between gap-2"
+                style={{
+                  background: active ? 'rgba(99,102,241,0.10)' : 'transparent',
+                  color: active ? '#4f46e5' : '#5a5a70',
+                  border: active ? '1px solid rgba(99,102,241,0.30)' : '1px solid transparent',
+                  opacity: p.loading ? 0.6 : 1,
+                }}
+              >
+                <span className="truncate">{p.label}</span>
+                <span
+                  className="text-[9px] uppercase tracking-widest flex-shrink-0"
+                  style={{ color: active ? '#4f46e5' : '#9494ad' }}
+                >
+                  {p.loading ? '…' : 'Pack'}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* Information Sources */}
+      {/* Information Sources — demo-specific; hidden when a Context Pack is active. */}
+      {!packActive && (
       <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(30,30,60,0.06)' }}>
         <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: '#9494ad' }}>
           Information Sources
@@ -156,8 +199,10 @@ export function LeftSidebar({
           })}
         </ul>
       </div>
+      )}
 
-      {/* Entity Filters */}
+      {/* Entity Filters — demo-specific; hidden when a Context Pack is active. */}
+      {!packActive && (
       <div className="px-4 py-3 flex-1">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[9px] uppercase tracking-widest" style={{ color: '#9494ad' }}>
@@ -201,6 +246,11 @@ export function LeftSidebar({
           })}
         </ul>
       </div>
+      )}
+
+      {/* Spacer so the footer stays pinned to the bottom when the demo-only
+          sections are hidden (Context Pack active). */}
+      {packActive && <div className="flex-1" />}
 
       {/* Footer — connect / import a data source (Obsidian import coming soon) */}
       <div className="px-3 py-3" style={{ borderTop: '1px solid rgba(30,30,60,0.06)' }}>

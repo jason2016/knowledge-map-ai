@@ -10,6 +10,9 @@ const ICONS: Record<EntityType, string> = {
   missingDoc: '❗', email: '✉️', case: '📁', action: '⚡',
   exhibition: '🎪', exhibitor: '🖼️', booth: '🏛️', visitor: '👥', lead: '🎯',
   campaign: '📣', content: '📑', partner: '🤝', opportunity: '💡', followup: '🔔',
+  customer: '👤', event: '📅', problem: '⚠️', conflict: '⚔️', playbook: '📘',
+  feedback: '💬', refactoring: '🛠️', source: '🔗',
+  futurePlan: '🚀', checklist: '✅',
 }
 
 // The node's measured box is EXACTLY the circle. The label is absolutely

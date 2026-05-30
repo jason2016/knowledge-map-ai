@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Context Pack exchange — generated bridge to C:\Drive-semantic\context-packs.
+# See docs/setup/2026-05-30-context-pack-exchange-setup.md
+/public/context-packs
+/public/context-packs.backup-before-exchange

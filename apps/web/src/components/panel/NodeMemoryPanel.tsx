@@ -1,8 +1,10 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, FileText, Link2, Clock, HelpCircle, Zap, Info } from 'lucide-react'
+import { X, FileText, Link2, Clock, HelpCircle, Zap, Info, BookOpen } from 'lucide-react'
 import { type KnowledgeNodeData, type ConnectedNodeInfo } from '@/types'
 import { ENTITY_COLORS, ENTITY_LABELS } from '../graph/entityColors'
+import { loadMemoryFileMarkdown } from '@/lib/contextPackLoader'
 
 function Section({
   icon,
@@ -30,12 +32,35 @@ interface Props {
   node: KnowledgeNodeData | null
   nodeId: string | null
   connectedNodes: ConnectedNodeInfo[]
+  // When a Context Pack is loaded, the URL of its context-pack.json — used to
+  // resolve the relative `memoryFile` paths from the pack.
+  packUrl?: string | null
   onClose: () => void
   isMobile?: boolean
 }
 
-export function NodeMemoryPanel({ node, nodeId, connectedNodes, onClose, isMobile }: Props) {
+export function NodeMemoryPanel({ node, nodeId, connectedNodes, packUrl, onClose, isMobile }: Props) {
   const color = node ? ENTITY_COLORS[node.entityType] : '#6366f1'
+
+  // Lazy-load the markdown for the selected node's memory_file (Context Pack only).
+  const [memoryMd, setMemoryMd] = useState<string | null>(null)
+  const [memoryErr, setMemoryErr] = useState<string | null>(null)
+  useEffect(() => {
+    setMemoryMd(null)
+    setMemoryErr(null)
+    if (!node?.memoryFile || !packUrl) return
+    let cancelled = false
+    loadMemoryFileMarkdown(packUrl, node.memoryFile)
+      .then((text) => {
+        if (!cancelled) setMemoryMd(text)
+      })
+      .catch((err) => {
+        if (!cancelled) setMemoryErr(err instanceof Error ? err.message : String(err))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [node?.memoryFile, packUrl, nodeId])
 
   // Mobile: bottom sheet sliding up. Desktop: right side column sliding in.
   const motionProps = isMobile
@@ -118,7 +143,95 @@ export function NodeMemoryPanel({ node, nodeId, connectedNodes, onClose, isMobil
               <p className="text-[12.5px] leading-relaxed" style={{ color: '#4a4a60' }}>
                 {node.summary}
               </p>
+              {(node.confidence || node.createdFrom) && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {node.confidence && (
+                    <span
+                      className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                      style={{
+                        background:
+                          node.confidence === 'high'
+                            ? '#dcfce7'
+                            : node.confidence === 'low'
+                            ? '#fee2e2'
+                            : '#fef3c7',
+                        color:
+                          node.confidence === 'high'
+                            ? '#166534'
+                            : node.confidence === 'low'
+                            ? '#991b1b'
+                            : '#92400e',
+                      }}
+                    >
+                      confidence: {node.confidence}
+                    </span>
+                  )}
+                  {node.createdFrom && (
+                    <span
+                      className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                      style={{ background: '#eef2ff', color: '#4f46e5' }}
+                    >
+                      from: {node.createdFrom}
+                    </span>
+                  )}
+                </div>
+              )}
+              {node.evidence && (
+                <p
+                  className="text-[11.5px] leading-snug mt-2 pl-2 italic"
+                  style={{ color: '#64748b', borderLeft: '2px solid #cbd5e1' }}
+                >
+                  {node.evidence}
+                </p>
+              )}
+              {node.sourceRefs && node.sourceRefs.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {node.sourceRefs.map((s, i) => (
+                    <li
+                      key={i}
+                      className="text-[10.5px] font-mono break-all"
+                      style={{ color: '#94a3b8' }}
+                    >
+                      ↳ {s}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Section>
+
+            {node.memoryFile && (
+              <Section icon={<BookOpen size={12} />} title="Node Memory">
+                <div
+                  className="text-[10.5px] font-mono mb-2 px-2 py-1 rounded"
+                  style={{ background: '#f8fafc', color: '#64748b' }}
+                >
+                  {node.memoryFile}
+                </div>
+                {memoryErr && (
+                  <p className="text-[11px]" style={{ color: '#b91c1c' }}>
+                    Failed to load memory: {memoryErr}
+                  </p>
+                )}
+                {memoryMd && (
+                  <pre
+                    className="text-[11.5px] leading-snug whitespace-pre-wrap rounded p-2 max-h-[260px] overflow-y-auto"
+                    style={{
+                      background: '#f8fafc',
+                      color: '#334155',
+                      fontFamily:
+                        'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+                    }}
+                  >
+                    {memoryMd}
+                  </pre>
+                )}
+                {!memoryMd && !memoryErr && (
+                  <p className="text-[11px]" style={{ color: '#94a3b8' }}>
+                    Loading memory…
+                  </p>
+                )}
+              </Section>
+            )}
 
             {connectedNodes.length > 0 && (
               <Section icon={<Link2 size={12} />} title="Connected To">

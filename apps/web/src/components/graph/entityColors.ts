@@ -21,6 +21,17 @@ export const ENTITY_COLORS: Record<EntityType, string> = {
   partner: '#a855f7',     // purple
   opportunity: '#14b8a6', // teal
   followup: '#ef4444',    // red
+  // Context Pack semantic types
+  customer: '#3b82f6',    // blue   — Customer / Client
+  event: '#a855f7',       // purple — Event
+  problem: '#ef4444',     // red    — Problem (concrete pain point)
+  conflict: '#dc2626',    // deep red — Conflict (architecture/decision conflict)
+  playbook: '#0ea5e9',    // sky    — Playbook / Checklist
+  feedback: '#14b8a6',    // teal   — Feedback
+  refactoring: '#f59e0b', // amber  — Refactoring
+  source: '#64748b',      // slate  — Source / Reference
+  futurePlan: '#8b5cf6',  // violet — Future Plan
+  checklist: '#10b981',   // emerald — Checklist
 }
 
 export const ENTITY_LABELS: Record<EntityType, string> = {
@@ -29,4 +40,7 @@ export const ENTITY_LABELS: Record<EntityType, string> = {
   action: 'Action', exhibition: 'Exhibition', exhibitor: 'Exhibitor', booth: 'Booth',
   visitor: 'Visitor', lead: 'Lead', campaign: 'Campaign', content: 'Content',
   partner: 'Partner', opportunity: 'Opportunity', followup: 'Follow-up',
+  customer: 'Customer', event: 'Event', problem: 'Problem', conflict: 'Conflict',
+  playbook: 'Playbook', feedback: 'Feedback', refactoring: 'Refactoring',
+  source: 'Source', futurePlan: 'Future Plan', checklist: 'Checklist',
 }
