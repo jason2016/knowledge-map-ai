@@ -33,6 +33,8 @@ export interface ContextPackVaultEntry {
   id: string
   label: string
   loading?: boolean
+  /** Short meta line shown under the label — e.g. "incident_root_cause · 11 nodes · 6 actions". */
+  meta?: string
 }
 
 interface Props {
@@ -129,7 +131,7 @@ export function LeftSidebar({
                 key={p.id}
                 onClick={() => onPackClick?.(p.id)}
                 disabled={p.loading}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 flex items-center justify-between gap-2"
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150"
                 style={{
                   background: active ? 'rgba(99,102,241,0.10)' : 'transparent',
                   color: active ? '#4f46e5' : '#5a5a70',
@@ -137,13 +139,24 @@ export function LeftSidebar({
                   opacity: p.loading ? 0.6 : 1,
                 }}
               >
-                <span className="truncate">{p.label}</span>
-                <span
-                  className="text-[9px] uppercase tracking-widest flex-shrink-0"
-                  style={{ color: active ? '#4f46e5' : '#9494ad' }}
-                >
-                  {p.loading ? '…' : 'Pack'}
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{p.label}</span>
+                  <span
+                    className="text-[9px] uppercase tracking-widest flex-shrink-0"
+                    style={{ color: active ? '#4f46e5' : '#9494ad' }}
+                  >
+                    {p.loading ? '…' : 'Pack'}
+                  </span>
+                </div>
+                {p.meta && (
+                  <div
+                    className="text-[10px] font-normal mt-0.5 truncate"
+                    style={{ color: active ? '#6366f1' : '#9494ad' }}
+                    title={p.meta}
+                  >
+                    {p.meta}
+                  </div>
+                )}
               </button>
             )
           })}

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Menu, Package, Loader2 } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
@@ -9,6 +9,7 @@ import { NodeMemoryPanel } from '@/components/panel/NodeMemoryPanel'
 import { ContextPackPanel } from '@/components/panel/ContextPackPanel'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { loadContextPack, NEIGE_ROUGE_PACK_URL } from '@/lib/contextPackLoader'
+import { loadContextPackIndex } from '@/lib/contextPackIndexLoader'
 import { type ContextPackVaultEntry } from '@/components/sidebar/LeftSidebar'
 import { contextPackToGraph, type ContextPackGraph } from '@/lib/contextPackToGraph'
 import { type ContextPack } from '@/types/context-pack'
@@ -57,49 +58,95 @@ export default function Page() {
   const [packUrl, setPackUrl] = useState<string | null>(null)
   const [activePackId, setActivePackId] = useState<string | null>(null)
 
-  // Static Context Pack vault — appears under DEMO VAULT in the left sidebar.
-  // Future: replace this constant with a fetch of /context-packs/index.json.
-  const PACK_VAULT: Array<ContextPackVaultEntry & { url: string }> = useMemo(
+  // Context Pack vault — populated from /context-packs/index.json on mount.
+  // Falls back to a single static Neige Rouge entry if the index cannot be read.
+  const FALLBACK_VAULT: Array<ContextPackVaultEntry & { url: string }> = useMemo(
     () => [
       {
-        id: 'neige-rouge-2026-05-30',
+        id: 'neige-rouge-static',
         label: 'Neige Rouge Commercial Launch',
         url: NEIGE_ROUGE_PACK_URL,
+        meta: 'static fallback',
       },
     ],
     []
   )
+  const [vaultPacks, setVaultPacks] = useState<
+    Array<ContextPackVaultEntry & { url: string }>
+  >(FALLBACK_VAULT)
+
+  useEffect(() => {
+    let cancelled = false
+    loadContextPackIndex()
+      .then((idx) => {
+        if (cancelled) return
+        const fromIndex = idx.packs.map((p) => {
+          const bits: string[] = []
+          if (p.query?.query_mode) bits.push(p.query.query_mode)
+          if (typeof p.node_count === 'number') bits.push(`${p.node_count} nodes`)
+          if (typeof p.action_count === 'number') bits.push(`${p.action_count} actions`)
+          return {
+            id: p.pack_id,
+            label: p.title || p.target?.name || p.pack_id,
+            url: p.public_fetch_path,
+            meta: bits.join(' · ') || undefined,
+          }
+        })
+        // De-dupe by id; if the index already contains a Neige Rouge pack, drop
+        // the static fallback to avoid a double entry.
+        const indexHasNeige = fromIndex.some((p) => /neige-rouge/i.test(p.id))
+        const merged = indexHasNeige
+          ? fromIndex
+          : [...fromIndex, ...FALLBACK_VAULT]
+        const seen = new Set<string>()
+        const deduped = merged.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+        setVaultPacks(deduped)
+      })
+      .catch(() => {
+        // Index unavailable — keep the static fallback already in state.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [FALLBACK_VAULT])
+
+  const loadPackByUrl = useCallback(async (id: string, url: string) => {
+    setPackLoading(true)
+    setPackError(null)
+    try {
+      const p = await loadContextPack(url)
+      setPack(p)
+      setPackGraph(contextPackToGraph(p))
+      setPackUrl(url)
+      setActivePackId(id)
+      setSelectedNodeId(null)
+      setActiveFilters([])
+      setFocusType(null)
+      setSidebarOpen(false)
+    } catch (err) {
+      setPackError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setPackLoading(false)
+    }
+  }, [])
 
   const loadPackById = useCallback(
     async (id: string) => {
-      const entry = PACK_VAULT.find((p) => p.id === id)
+      const entry = vaultPacks.find((p) => p.id === id)
       if (!entry) return
-      setPackLoading(true)
-      setPackError(null)
-      try {
-        const p = await loadContextPack(entry.url)
-        setPack(p)
-        setPackGraph(contextPackToGraph(p))
-        setPackUrl(entry.url)
-        setActivePackId(id)
-        setSelectedNodeId(null)
-        setActiveFilters([])
-        setFocusType(null)
-        setSidebarOpen(false)
-      } catch (err) {
-        setPackError(err instanceof Error ? err.message : String(err))
-      } finally {
-        setPackLoading(false)
-      }
+      await loadPackByUrl(id, entry.url)
     },
-    [PACK_VAULT]
+    [vaultPacks, loadPackByUrl]
   )
 
-  // Kept for the temporary top-right test button — delegates to the vault loader.
-  const handleLoadNeigeRouge = useCallback(
-    () => loadPackById('neige-rouge-2026-05-30'),
-    [loadPackById]
-  )
+  // Top-right test button: prefers a Neige Rouge entry from the loaded index;
+  // falls back to the static URL if the index has not loaded yet.
+  const handleLoadNeigeRouge = useCallback(() => {
+    const fromVault = vaultPacks.find((p) => /neige-rouge/i.test(p.id))
+    if (fromVault) return loadPackByUrl(fromVault.id, fromVault.url)
+    return loadPackByUrl('neige-rouge-static', NEIGE_ROUGE_PACK_URL)
+  }, [vaultPacks, loadPackByUrl])
+
 
   const handleClosePack = useCallback(() => {
     setPack(null)
@@ -306,9 +353,10 @@ export default function Page() {
             onSourceAdd={handleSourceAdd}
             open={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
-            contextPacks={PACK_VAULT.map((p) => ({
+            contextPacks={vaultPacks.map((p) => ({
               id: p.id,
               label: p.label,
+              meta: p.meta,
               loading: packLoading && activePackId !== p.id,
             }))}
             activePackId={activePackId}
