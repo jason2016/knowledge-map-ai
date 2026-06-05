@@ -114,6 +114,99 @@ export function DemoGraphCanvas3DInner({
     [nodesArr, linksArr]
   )
 
+  // ── Scene-aware framing ────────────────────────────────────────────────
+  // The mobile 3D camera should not stare at the entire graph — it should
+  // frame the nodes relevant to the current scene + selection so the demo
+  // story is visible without manual panning.
+  const isMobile = size.w > 0 && size.w < 768
+
+  // Target node set = selected node + its 1-hop neighbours, plus the current
+  // scene's focusNodeIds and any nodes touched by focusEdgeIds. Falls back to
+  // every node when nothing is focused (so the graph still gets a sane frame
+  // on first paint).
+  const targetIds = useMemo(() => {
+    const s = new Set<string>()
+    if (selectedNodeId) {
+      s.add(selectedNodeId)
+      edges.forEach((e) => {
+        if (e.source === selectedNodeId) s.add(e.target)
+        if (e.target === selectedNodeId) s.add(e.source)
+      })
+    }
+    focusNodeIds.forEach((id) => s.add(id))
+    if (focusEdgeIds && focusEdgeIds.size > 0) {
+      edges.forEach((e) => {
+        if (focusEdgeIds.has(e.id)) {
+          s.add(e.source)
+          s.add(e.target)
+        }
+      })
+    }
+    if (s.size === 0) {
+      nodesArr.forEach((n) => s.add(n.id))
+    }
+    return s
+  }, [selectedNodeId, focusNodeIds, focusEdgeIds, edges, nodesArr])
+
+  // Move the camera to a frame that contains every node in `ids`, with extra
+  // padding (and a tighter minimum distance) on mobile so the relevant cluster
+  // is genuinely readable.
+  const frameToTargets = useCallback(
+    (ids: Set<string>, ms: number) => {
+      const fg = fgRef.current
+      const cam = fg?.camera?.()
+      if (!fg || !cam || size.w === 0 || size.h === 0 || ids.size === 0) return
+      const pts: { x: number; y: number; z: number }[] = []
+      nodesArr.forEach((n) => {
+        if (!ids.has(n.id)) return
+        if (n.x == null) return
+        pts.push({ x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 })
+      })
+      if (pts.length === 0) return
+      const c = { x: 0, y: 0, z: 0 }
+      pts.forEach((p) => {
+        c.x += p.x
+        c.y += p.y
+        c.z += p.z
+      })
+      c.x /= pts.length
+      c.y /= pts.length
+      c.z /= pts.length
+      let R = 22 // floor so single-node fits don't crash the camera into a sphere
+      pts.forEach((p) => {
+        const d = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z)
+        if (d > R) R = d
+      })
+      R += 18 // headroom for node radius + label + halo
+      const fov = ((cam.fov ?? 50) * Math.PI) / 180
+      const aspect = size.w / size.h || 1
+      // Mobile gets a larger margin so the cluster doesn't graze the edges of a
+      // narrow viewport; desktop stays close to the homepage 3D's 0.82 feel.
+      const margin = isMobile ? 1.35 : 0.95
+      const minD = isMobile ? 80 : 130
+      const D =
+        Math.max(R / Math.tan(fov / 2), R / (Math.tan(fov / 2) * aspect)) * margin
+      const finalD = Math.max(D, minD)
+      // Approach from +Z relative to the cluster centroid, looking at it.
+      fg.cameraPosition(
+        { x: c.x, y: c.y, z: c.z + finalD },
+        { x: c.x, y: c.y, z: c.z },
+        ms
+      )
+    },
+    [nodesArr, size.w, size.h, isMobile]
+  )
+
+  // Fit the camera on first paint, on viewport / orientation changes, and
+  // whenever the target set changes (scene switch, selection, hover, etc.).
+  // The fit is animated for scene/selection changes so it reads as a "follow"
+  // rather than a teleport.
+  useEffect(() => {
+    if (size.w === 0) return
+    const id = window.requestAnimationFrame(() => frameToTargets(targetIds, 850))
+    return () => window.cancelAnimationFrame(id)
+  }, [targetIds, size.w, size.h, frameToTargets])
+
   // Glow texture for active-node halo (same approach as the homepage 3D view).
   const getGlowTexture = useCallback(() => {
     const c = document.createElement('canvas')
@@ -210,16 +303,32 @@ export function DemoGraphCanvas3DInner({
   )
 
   // Focus / selection mutation — no rebuild, no jitter.
+  // On mobile, base sizes are bumped so nodes and labels stay readable on a
+  // ~390px viewport, and selected / focused nodes pop harder so the demo
+  // story is obvious without manual zooming.
   useEffect(() => {
     const anyFocus = focusNodeIds.size > 0
+    // Mobile gets a wider dynamic range: bigger floor + bigger selected/focus
+    // scale, so the active cluster reads clearly inside the frame the camera
+    // is animating to.
+    const baseScale = isMobile ? 1.35 : 1
+    const selectedFactor = isMobile ? 1.55 : 1.4
+    const focusFactor = isMobile ? 1.25 : 1.1
+    const dimFactor = isMobile ? 0.95 : 0.9
+
+    const labelMain = isMobile ? 5.5 : 4
+    const labelSelected = isMobile ? 7 : 5.4
+    const labelDim = isMobile ? 4 : 3.4
+    const labelDimColor = isMobile ? 'rgba(71,85,105,0.50)' : 'rgba(71,85,105,0.20)'
+
     nodesArr.forEach((n) => {
       const obj = n.__threeObj
       if (!obj) return
       const inFocus = focusNodeIds.has(n.id)
       const isSelected = n.id === selectedNodeId
       const dim = anyFocus && !inFocus && !isSelected
-      const scale = isSelected ? 1.4 : inFocus ? 1.1 : 1
-      obj.scale.setScalar(scale)
+      const localFactor = isSelected ? selectedFactor : inFocus ? focusFactor : dim ? dimFactor : 1
+      obj.scale.setScalar(baseScale * localFactor)
       obj.children.forEach((ch: any) => {
         const role = ch.userData?.role
         if (role === 'node') {
@@ -227,20 +336,22 @@ export function DemoGraphCanvas3DInner({
           const base = ch.userData.baseColor
           m.color.set(dim ? '#cdd3e0' : base)
           m.emissive?.set(dim ? '#000000' : base)
-          m.emissiveIntensity = dim ? 0 : isSelected ? 0.4 : 0.22
-          m.opacity = dim ? 0.18 : 1
+          m.emissiveIntensity = dim ? 0 : isSelected ? 0.45 : 0.22
+          // On mobile, dim nodes stay slightly more visible so the surrounding
+          // context is recognisable while the focus still dominates.
+          m.opacity = dim ? (isMobile ? 0.32 : 0.18) : 1
           m.needsUpdate = true
         } else if (role === 'halo') {
-          ch.material.opacity = isSelected ? 0.85 : inFocus ? 0.35 : 0
+          ch.material.opacity = isSelected ? 0.9 : inFocus ? 0.4 : 0
         } else if (role === 'label') {
-          ch.color = dim ? 'rgba(71,85,105,0.20)' : isSelected ? '#0f172a' : '#334155'
-          ch.textHeight = isSelected ? 5.4 : 4
+          ch.color = dim ? labelDimColor : isSelected ? '#0f172a' : '#334155'
+          ch.textHeight = isSelected ? labelSelected : inFocus ? labelMain : dim ? labelDim : labelMain
         } else if (role === 'status') {
-          ch.material.opacity = dim ? 0.18 : 1
+          ch.material.opacity = dim ? (isMobile ? 0.4 : 0.18) : 1
         }
       })
     })
-  }, [focusNodeIds, selectedNodeId, nodesArr])
+  }, [focusNodeIds, selectedNodeId, nodesArr, isMobile])
 
   return (
     <div
