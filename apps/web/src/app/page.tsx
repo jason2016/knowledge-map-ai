@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { Menu, Package, Loader2, Sparkles } from 'lucide-react'
+import { Menu, Package, Loader2, Sparkles, Layers } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
@@ -325,6 +325,20 @@ export default function Page() {
             >
               {dataset.label}
             </span>
+            <Link
+              href="/semantic-os-demo"
+              title="See how Semantic OS turns business records into structured AI memory."
+              className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+              style={{
+                background: 'rgba(14,165,233,0.08)',
+                color: '#0284c7',
+                border: '1px solid rgba(14,165,233,0.25)',
+              }}
+            >
+              <Layers size={11} />
+              <span>Semantic OS Demo</span>
+              <span aria-hidden>→</span>
+            </Link>
             <Link
               href="/agent-workspace"
               title="Explore how Semantic OS can move from knowledge visualization to AI execution and feedback."
