@@ -197,6 +197,94 @@ export function GraphDemoShell({ dataset, otherDemo }: Props) {
         </header>
       )}
 
+      {/* ── Mobile-only control band ──────────────────────────────────
+          Desktop already exposes page-nav + Present pills in the header
+          and the 2D / 3D toggle centred on the canvas. On phones those
+          either don't fit or are easy to miss, so we render a compact
+          stacked band here. `md:hidden` keeps it off the desktop layout.
+      */}
+      {!presentation && (() => {
+        const isSemanticOs = otherDemo.href === '/agent-workspace'
+        const isAgent = otherDemo.href === '/semantic-os-demo'
+        const navPills: Array<{ href: string; label: string; active: boolean }> = [
+          { href: '/',                   label: 'Knowledge Map AI', active: false },
+          { href: '/semantic-os-demo',   label: 'Semantic OS',      active: isSemanticOs },
+          { href: '/agent-workspace',    label: 'Agent',            active: isAgent },
+        ]
+        return (
+          <div
+            className="md:hidden flex-shrink-0 px-3 py-2 flex flex-col gap-1.5"
+            style={{
+              background: '#ffffff',
+              borderBottom: '1px solid rgba(30,30,60,0.06)',
+            }}
+          >
+            {/* Row 1 — page navigation */}
+            <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1">
+              {navPills.map((p) => (
+                <Link
+                  key={p.href}
+                  href={p.href}
+                  className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap"
+                  style={{
+                    background: p.active ? '#4f46e5' : 'rgba(99,102,241,0.08)',
+                    color: p.active ? '#ffffff' : '#4f46e5',
+                    border: '1px solid ' + (p.active ? '#4f46e5' : 'rgba(99,102,241,0.20)'),
+                  }}
+                  aria-current={p.active ? 'page' : undefined}
+                >
+                  {p.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Row 2 — 2D / 3D segmented control + Present */}
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-0.5 p-0.5 rounded-full"
+                style={{
+                  background: 'rgba(248,250,252,0.92)',
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                {(['2d', '3d'] as const).map((m) => {
+                  const active = view === m
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => setView(m)}
+                      className="px-3 py-0.5 rounded-full text-[11px] font-medium transition-colors"
+                      style={{
+                        background: active ? '#4f46e5' : 'transparent',
+                        color: active ? '#ffffff' : '#64748b',
+                      }}
+                    >
+                      {m === '2d' ? '2D Map' : '3D Space'}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                onClick={() => {
+                  setPresentation(true)
+                  setPlaying(true)
+                  setSelectedNodeId(null)
+                }}
+                className="ml-auto inline-flex items-center text-[11px] px-3 py-1 rounded-full whitespace-nowrap"
+                style={{
+                  background: '#7c3aed',
+                  color: '#ffffff',
+                  border: '1px solid #7c3aed',
+                }}
+                title="Presentation mode (auto-play, minimal chrome)"
+              >
+                Present
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── 3-pane layout (sidebar becomes a drawer on mobile) ────────── */}
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Mobile backdrop */}
@@ -309,9 +397,10 @@ export function GraphDemoShell({ dataset, otherDemo }: Props) {
 
         {/* Center: graph canvas. */}
         <main className="flex-1 min-w-0 overflow-hidden relative">
-          {/* 2D / 3D toggle — same component as homepage /. */}
+          {/* 2D / 3D toggle — same component as homepage /. Hidden on phones
+              because the mobile-only control band above already exposes it. */}
           {!presentation && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1">
+            <div className="hidden md:flex absolute top-3 left-1/2 -translate-x-1/2 z-10 flex-col items-center gap-1">
               <div
                 className="flex items-center gap-0.5 p-0.5 rounded-full"
                 style={{
