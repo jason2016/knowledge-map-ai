@@ -110,8 +110,12 @@ export function GraphDemoShell({ dataset, otherDemo }: Props) {
   }, [])
 
   return (
+    // `h-[100dvh]` (dynamic viewport) instead of `h-screen` (100vh) so the
+    // demo follows iOS Safari's URL bar / toolbar as it shows and hides.
+    // With 100vh, the bottom timeline controls would land behind the Safari
+    // toolbar and become unclickable on iPhone.
     <div
-      className="h-screen flex flex-col overflow-hidden"
+      className="h-[100dvh] flex flex-col overflow-hidden"
       style={{ background: '#fbfbfd' }}
     >
       {/* ── Top nav (matches homepage /) ──────────────────────────────── */}
@@ -462,14 +466,26 @@ export function GraphDemoShell({ dataset, otherDemo }: Props) {
             />
           </div>
 
-          {/* Scene caption overlay (visible in both normal and presentation modes). */}
-          <div className={
-            'absolute z-10 pointer-events-none ' +
-            (presentation
-              ? 'top-6 left-1/2 -translate-x-1/2 max-w-[680px] w-[88%]'
-              : 'left-3 sm:left-4 max-w-[420px] w-[calc(100%-1.5rem)] sm:w-[400px]') +
-            (presentation ? '' : ' bottom-[68px] sm:bottom-[72px]')
-          }>
+          {/* Scene caption overlay (visible in both normal and presentation
+              modes). When at the bottom (non-presentation mode) it stacks
+              above the timeline pill with extra safe-area headroom, so on
+              iPhone it never collides with the controls or the Safari
+              toolbar. In presentation mode it sits at the top, with the
+              top safe-area inset on top of the existing offset to clear the
+              dynamic notch / status bar. */}
+          <div
+            className={
+              'absolute z-10 pointer-events-none ' +
+              (presentation
+                ? 'left-1/2 -translate-x-1/2 max-w-[680px] w-[88%]'
+                : 'left-3 sm:left-4 max-w-[420px] w-[calc(100%-1.5rem)] sm:w-[400px]')
+            }
+            style={
+              presentation
+                ? { top: 'calc(env(safe-area-inset-top) + 24px)' }
+                : { bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }
+            }
+          >
             <div
               className="rounded-xl px-4 py-3"
               style={{
@@ -491,8 +507,14 @@ export function GraphDemoShell({ dataset, otherDemo }: Props) {
             </div>
           </div>
 
-          {/* Bottom-centre timeline controls (homepage pill style). */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-3 z-20">
+          {/* Bottom-centre timeline controls (homepage pill style). The bottom
+              offset uses env(safe-area-inset-bottom) on top of a 12px base so
+              the pill stays above the iOS home-bar / Safari bottom chrome and
+              never overlaps the URL bar. */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-20"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+          >
             <div
               className="flex items-center gap-1 px-2 py-1 rounded-full"
               style={{
