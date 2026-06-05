@@ -359,6 +359,56 @@ export default function Page() {
           </div>
         </header>
 
+        {/* ── Mobile-only navigation band ──────────────────────────────
+            On phones the desktop right-side pills (Semantic OS Demo,
+            Agent Workspace) are `hidden sm:inline-flex`, so without
+            this row a phone user can only see the hamburger and never
+            reach the other two main pages. The band mirrors the same
+            pills used in the GraphDemoShell on /semantic-os-demo and
+            /agent-workspace, keeping the cross-page navigation visible
+            and consistent. `md:hidden` keeps desktop untouched. */}
+        <div
+          className="md:hidden flex-shrink-0 px-3 py-2 flex items-center gap-1.5 overflow-x-auto"
+          style={{ background: '#ffffff', borderBottom: '1px solid rgba(30,30,60,0.06)' }}
+        >
+          <Link
+            href="/"
+            aria-current="page"
+            className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap"
+            style={{
+              background: '#4f46e5',
+              color: '#ffffff',
+              border: '1px solid #4f46e5',
+            }}
+          >
+            Home
+          </Link>
+          <Link
+            href="/semantic-os-demo"
+            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap"
+            style={{
+              background: 'rgba(14,165,233,0.08)',
+              color: '#0284c7',
+              border: '1px solid rgba(14,165,233,0.25)',
+            }}
+          >
+            <Layers size={11} />
+            Semantic OS
+          </Link>
+          <Link
+            href="/agent-workspace"
+            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap"
+            style={{
+              background: 'rgba(168,85,247,0.08)',
+              color: '#7c3aed',
+              border: '1px solid rgba(168,85,247,0.25)',
+            }}
+          >
+            <Sparkles size={11} />
+            Agent
+          </Link>
+        </div>
+
         {/* ── 3-column layout (sidebar becomes an off-canvas drawer on mobile) ── */}
         <div className="flex flex-1 min-h-0 overflow-hidden relative">
           {/* Mobile backdrop */}

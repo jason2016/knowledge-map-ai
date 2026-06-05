@@ -1,5 +1,6 @@
 'use client'
-import { X } from 'lucide-react'
+import Link from 'next/link'
+import { Layers, Sparkles, X } from 'lucide-react'
 import { type DemoId, type EntityType } from '@/types'
 import { ENTITY_COLORS, ENTITY_LABELS } from '../graph/entityColors'
 
@@ -99,6 +100,59 @@ export function LeftSidebar({
       >
         <X size={16} />
       </button>
+
+      {/* Pages — visible only when the drawer is opened from the homepage
+          hamburger (md:hidden keeps the desktop sidebar pristine). Tapping
+          a page closes the drawer immediately. */}
+      <div
+        className="md:hidden px-4 pb-3"
+        style={{ borderBottom: '1px solid rgba(30,30,60,0.06)' }}
+      >
+        <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: '#9494ad' }}>
+          Pages
+        </p>
+        <div className="flex flex-col gap-1">
+          <Link
+            href="/"
+            onClick={onClose}
+            aria-current="page"
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+            style={{
+              background: 'rgba(99,102,241,0.10)',
+              color: '#4f46e5',
+              border: '1px solid rgba(99,102,241,0.30)',
+            }}
+          >
+            Home · Knowledge Map AI
+          </Link>
+          <Link
+            href="/semantic-os-demo"
+            onClick={onClose}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium flex items-center gap-2"
+            style={{
+              background: 'rgba(14,165,233,0.08)',
+              color: '#0284c7',
+              border: '1px solid rgba(14,165,233,0.20)',
+            }}
+          >
+            <Layers size={12} />
+            Semantic OS Demo
+          </Link>
+          <Link
+            href="/agent-workspace"
+            onClick={onClose}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-medium flex items-center gap-2"
+            style={{
+              background: 'rgba(168,85,247,0.08)',
+              color: '#7c3aed',
+              border: '1px solid rgba(168,85,247,0.20)',
+            }}
+          >
+            <Sparkles size={12} />
+            Agent Workspace
+          </Link>
+        </div>
+      </div>
 
       {/* Demo Vault */}
       <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid rgba(30,30,60,0.06)' }}>
