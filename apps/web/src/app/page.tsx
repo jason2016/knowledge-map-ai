@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Menu, Package, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { Menu, Package, Loader2, Sparkles } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
@@ -324,6 +325,20 @@ export default function Page() {
             >
               {dataset.label}
             </span>
+            <Link
+              href="/agent-workspace"
+              title="Explore how Semantic OS can move from knowledge visualization to AI execution and feedback."
+              className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+              style={{
+                background: 'rgba(168,85,247,0.08)',
+                color: '#7c3aed',
+                border: '1px solid rgba(168,85,247,0.25)',
+              }}
+            >
+              <Sparkles size={11} />
+              <span>Agent Workspace</span>
+              <span aria-hidden>→</span>
+            </Link>
             <span className="hidden lg:inline text-[11px]" style={{ color: '#9494ad' }}>
               by ClawShow AI
             </span>
