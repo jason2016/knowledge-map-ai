@@ -28,8 +28,14 @@ interface Props {
   onSelect: (id: string | null) => void
 }
 
-// Lightweight dark-themed 2D graph: pre-settled d3-force layout rendered as
-// SVG. Focus = brighter; non-focus = dimmed. Click a node to select.
+// Light-themed 2D graph that visually matches the homepage 2D Map: white
+// background with a subtle dot grid (the same look React Flow's `Background`
+// gives the homepage), circular nodes with colour-coded fills, soft floating
+// edges that brighten into indigo when in focus.
+//
+// Layout is pre-settled with d3-force and pinned, so the user can't drag the
+// graph into chaos and nothing animates on its own. Step focus is purely a
+// visual treatment.
 export function DemoGraphCanvas2D({
   nodes,
   edges,
@@ -52,8 +58,6 @@ export function DemoGraphCanvas2D({
     return () => ro.disconnect()
   }, [])
 
-  // Pre-settle the layout once per dataset / size. Positions are then fixed —
-  // no engine runs while the user interacts.
   const positions = useMemo(() => {
     if (size.w === 0 || size.h === 0) return new Map<string, { x: number; y: number }>()
     const simNodes: SimNode[] = nodes.map((n, i) => ({
@@ -63,10 +67,10 @@ export function DemoGraphCanvas2D({
     }))
     const simLinks: SimLink[] = edges.map((e) => ({ source: e.source, target: e.target }))
     const sim = forceSimulation<SimNode>(simNodes)
-      .force('link', forceLink<SimNode, SimLink>(simLinks).id((d) => d.id).distance(140).strength(0.5))
-      .force('charge', forceManyBody().strength(-520).distanceMax(900))
+      .force('link', forceLink<SimNode, SimLink>(simLinks).id((d) => d.id).distance(150).strength(0.5))
+      .force('charge', forceManyBody().strength(-560).distanceMax(900))
       .force('center', forceCenter(0, 0))
-      .force('collide', forceCollide(48))
+      .force('collide', forceCollide(52))
       .stop()
     for (let i = 0; i < 400; i++) sim.tick()
     const m = new Map<string, { x: number; y: number }>()
@@ -74,7 +78,6 @@ export function DemoGraphCanvas2D({
     return m
   }, [nodes, edges, size.w, size.h])
 
-  // Compute layout bounds → viewBox, with margin.
   const viewBox = useMemo(() => {
     if (positions.size === 0) return '-400 -300 800 600'
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -84,14 +87,18 @@ export function DemoGraphCanvas2D({
       if (p.x > maxX) maxX = p.x
       if (p.y > maxY) maxY = p.y
     })
-    const m = 100
+    const m = 110
     return `${minX - m} ${minY - m} ${maxX - minX + m * 2} ${maxY - minY + m * 2}`
   }, [positions])
 
   const anyFocus = focusNodeIds.size > 0
 
   return (
-    <div ref={wrapRef} className="w-full h-full">
+    <div
+      ref={wrapRef}
+      className="w-full h-full"
+      style={{ background: '#ffffff' }}
+    >
       {size.w > 0 && size.h > 0 && (
         <svg
           width="100%"
@@ -99,11 +106,24 @@ export function DemoGraphCanvas2D({
           viewBox={viewBox}
           preserveAspectRatio="xMidYMid meet"
           onClick={(e) => {
-            // Click on empty canvas → deselect.
             if (e.target === e.currentTarget) onSelect(null)
           }}
         >
-          {/* Edges first, so nodes draw on top. */}
+          <defs>
+            {/* Same feel as the homepage React Flow dot background. */}
+            <pattern id="demo-2d-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r="0.8" fill="#cbd5e1" />
+            </pattern>
+          </defs>
+          <rect
+            x={viewBox.split(' ')[0]}
+            y={viewBox.split(' ')[1]}
+            width={viewBox.split(' ')[2]}
+            height={viewBox.split(' ')[3]}
+            fill="url(#demo-2d-dots)"
+          />
+
+          {/* Edges. */}
           <g>
             {edges.map((e) => {
               const s = positions.get(e.source)
@@ -122,21 +142,35 @@ export function DemoGraphCanvas2D({
                     y1={s.y}
                     x2={t.x}
                     y2={t.y}
-                    stroke={inFocus ? '#a5b4fc' : '#475569'}
-                    strokeWidth={inFocus ? 2 : 1.1}
-                    strokeOpacity={dim ? 0.18 : inFocus ? 0.95 : 0.5}
+                    stroke={inFocus ? '#6366f1' : '#9aa6bd'}
+                    strokeWidth={inFocus ? 2 : 1.2}
+                    strokeOpacity={dim ? 0.18 : inFocus ? 1 : 0.75}
                   />
                   {e.label && inFocus && (
-                    <text
-                      x={mx}
-                      y={my - 4}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill="#cbd5e1"
-                      style={{ pointerEvents: 'none', fontStyle: 'italic' }}
-                    >
-                      {e.label}
-                    </text>
+                    <g>
+                      {/* label backdrop, mimicking the homepage edge label chip */}
+                      <rect
+                        x={mx - (e.label.length * 3.4)}
+                        y={my - 11}
+                        width={e.label.length * 6.8}
+                        height={14}
+                        rx={3}
+                        fill="#f8fafc"
+                        stroke="#e2e8f0"
+                        strokeWidth={0.5}
+                      />
+                      <text
+                        x={mx}
+                        y={my - 1}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fontWeight={600}
+                        fill="#4338ca"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {e.label}
+                      </text>
+                    </g>
                   )}
                 </g>
               )
@@ -152,9 +186,9 @@ export function DemoGraphCanvas2D({
               const inFocus = focusNodeIds.has(n.id)
               const dim = anyFocus && !inFocus && !isSelected
               const baseColor = colorForType(n.type)
-              const ringColor = n.status ? STATUS_COLORS[n.status] : baseColor
+              const ringColor = n.status && n.status !== 'idle' ? STATUS_COLORS[n.status] : baseColor
               const r = 26
-              const opacity = dim ? 0.28 : 1
+              const opacity = dim ? 0.32 : 1
               return (
                 <g
                   key={n.id}
@@ -165,22 +199,20 @@ export function DemoGraphCanvas2D({
                     onSelect(n.id === selectedNodeId ? null : n.id)
                   }}
                 >
-                  {/* Halo when selected / focused */}
                   {(isSelected || inFocus) && (
                     <circle
                       r={r + 10}
                       fill={baseColor}
-                      opacity={isSelected ? 0.22 : 0.12}
+                      opacity={isSelected ? 0.18 : 0.10}
                     />
                   )}
-                  {/* Status ring (animated for running) */}
                   {n.status === 'running' && !dim && (
                     <circle
                       r={r + 4}
                       fill="none"
                       stroke={STATUS_COLORS.running}
                       strokeWidth={2}
-                      opacity={0.7}
+                      opacity={0.75}
                     >
                       <animate
                         attributeName="r"
@@ -190,34 +222,31 @@ export function DemoGraphCanvas2D({
                       />
                       <animate
                         attributeName="opacity"
-                        values="0.7;0.15;0.7"
+                        values="0.75;0.15;0.75"
                         dur="2s"
                         repeatCount="indefinite"
                       />
                     </circle>
                   )}
-                  {/* Solid node */}
                   <circle
                     r={r}
                     fill={baseColor}
                     opacity={opacity}
-                    stroke={isSelected ? '#ffffff' : ringColor}
-                    strokeWidth={isSelected ? 2.5 : n.status && n.status !== 'idle' ? 2 : 1}
+                    stroke={isSelected ? '#1c1c2e' : ringColor}
+                    strokeWidth={isSelected ? 2.5 : n.status && n.status !== 'idle' ? 2 : 1.5}
                   />
-                  {/* Inner subtle gradient feel via a smaller lit circle */}
-                  <circle r={r * 0.7} fill="#0f172a" opacity={dim ? 0.4 : 0.18} />
-                  {/* Label */}
+                  {/* a soft inner ring for the same depth feel as homepage nodes */}
+                  <circle r={r - 6} fill="#ffffff" opacity={dim ? 0.35 : 0.18} />
                   <text
                     y={r + 16}
                     textAnchor="middle"
                     fontSize="12"
                     fontWeight={inFocus || isSelected ? 600 : 500}
-                    fill={dim ? '#475569' : isSelected ? '#ffffff' : '#e2e8f0'}
+                    fill={dim ? '#94a3b8' : isSelected ? '#1c1c2e' : '#475569'}
                     style={{ pointerEvents: 'none' }}
                   >
                     {n.label}
                   </text>
-                  {/* Status badge */}
                   {n.status && n.status !== 'idle' && !dim && (
                     <text
                       y={r + 30}

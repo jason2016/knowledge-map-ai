@@ -1,31 +1,32 @@
 import { type DemoStatus } from '@/types/demo'
 
-// One palette for all demo graphs. Soft, distinct, friendly on a dark canvas.
+// One palette for all demo graphs. Tuned to match the homepage 2D / 3D look
+// (light backgrounds, slightly deeper saturation so labels read on white).
 export const TYPE_COLORS: Record<string, string> = {
   // Semantic OS demo
-  record:        '#60a5fa', // blue
-  process:       '#818cf8', // indigo
-  memory:        '#a78bfa', // violet
-  evidence:      '#22d3ee', // cyan
-  risk:          '#f87171', // red
-  decision:      '#fbbf24', // amber
-  action:        '#f472b6', // pink
-  outcome:       '#34d399', // emerald
-  feedback:      '#2dd4bf', // teal
-  rule:          '#facc15', // yellow
-  playbook:      '#38bdf8', // sky
-  export:        '#e879f9', // fuchsia
-  visualization: '#818cf8', // indigo
+  record:        '#3b82f6', // blue
+  process:       '#6366f1', // indigo
+  memory:        '#8b5cf6', // violet
+  evidence:      '#06b6d4', // cyan
+  risk:          '#ef4444', // red
+  decision:      '#f59e0b', // amber
+  action:        '#ec4899', // pink
+  outcome:       '#10b981', // emerald
+  feedback:      '#14b8a6', // teal
+  rule:          '#eab308', // yellow
+  playbook:      '#0ea5e9', // sky
+  export:        '#d946ef', // fuchsia
+  visualization: '#4f46e5', // indigo
 
   // Agent workspace demo
-  goal:      '#fbbf24', // amber
-  query:     '#22d3ee', // cyan
-  context:   '#818cf8', // indigo
-  planner:   '#a78bfa', // violet
-  agent:     '#e879f9', // fuchsia
-  review:    '#fb923c', // orange
-  result:    '#34d399', // emerald
-  writeback: '#f472b6', // pink
+  goal:      '#f59e0b', // amber
+  query:     '#06b6d4', // cyan
+  context:   '#6366f1', // indigo
+  planner:   '#8b5cf6', // violet
+  agent:     '#d946ef', // fuchsia
+  review:    '#f97316', // orange
+  result:    '#10b981', // emerald
+  writeback: '#ec4899', // pink
 }
 
 export function colorForType(t?: string): string {
@@ -33,14 +34,15 @@ export function colorForType(t?: string): string {
   return TYPE_COLORS[t] ?? '#94a3b8'
 }
 
-// Status accents (border / ring colour, badge background, etc.)
+// Status accents (border / ring colour, badge background, etc.) tuned for a
+// white canvas: deep enough to read on light backgrounds, not neon.
 export const STATUS_COLORS: Record<DemoStatus, string> = {
   idle:      '#64748b',
-  active:    '#818cf8',
-  running:   '#22d3ee',
-  completed: '#34d399',
+  active:    '#4f46e5',
+  running:   '#06b6d4',
+  completed: '#10b981',
   waiting:   '#94a3b8',
-  review:    '#fbbf24',
+  review:    '#f59e0b',
 }
 
 export const STATUS_LABEL: Record<DemoStatus, string> = {

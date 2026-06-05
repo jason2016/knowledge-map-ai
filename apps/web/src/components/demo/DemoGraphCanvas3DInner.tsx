@@ -1,6 +1,6 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as THREE from 'three'
@@ -31,6 +31,7 @@ interface GLink {
   source: string | GNode
   target: string | GNode
   __id: string
+  __curveRot?: number
 }
 
 const idOf = (e: string | GNode) => (typeof e === 'object' ? e.id : e)
@@ -44,6 +45,12 @@ interface Props {
   onSelect: (id: string | null) => void
 }
 
+// 3D demo canvas styled to match the homepage 3D Space view:
+//   - soft light radial gradient background (CSS, behind the transparent canvas)
+//   - MeshStandardMaterial spheres with an emissive floor so colours stay true
+//   - strong AmbientLight + two PointLights for shading
+//   - SpriteText labels in slate, growing on selection
+//   - curved indigo links on focus
 export function DemoGraphCanvas3DInner({
   nodes,
   edges,
@@ -68,7 +75,6 @@ export function DemoGraphCanvas3DInner({
     return () => ro.disconnect()
   }, [])
 
-  // Pre-settle layout once per dataset, then pin everything (static graph).
   const nodesArr = useMemo<GNode[]>(() => {
     const arr: any[] = nodes.map((n) => ({
       id: n.id,
@@ -94,10 +100,11 @@ export function DemoGraphCanvas3DInner({
 
   const linksArr = useMemo<GLink[]>(
     () =>
-      edges.map((e) => ({
+      edges.map((e, i) => ({
         source: e.source,
         target: e.target,
         __id: e.id,
+        __curveRot: (i * 2.39996) % (Math.PI * 2),
       })),
     [edges]
   )
@@ -107,6 +114,20 @@ export function DemoGraphCanvas3DInner({
     [nodesArr, linksArr]
   )
 
+  // Glow texture for active-node halo (same approach as the homepage 3D view).
+  const getGlowTexture = useCallback(() => {
+    const c = document.createElement('canvas')
+    c.width = c.height = 128
+    const ctx = c.getContext('2d')!
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+    g.addColorStop(0, 'rgba(255,255,255,0.9)')
+    g.addColorStop(0.45, 'rgba(255,255,255,0.25)')
+    g.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, 128, 128)
+    return new THREE.CanvasTexture(c)
+  }, [])
+
   // Lighting + decoration (once).
   useEffect(() => {
     const fg = fgRef.current
@@ -115,48 +136,80 @@ export function DemoGraphCanvas3DInner({
     if (!scene) return
     try {
       decoratedRef.current = true
-      scene.add(new THREE.AmbientLight(0xffffff, 0.85))
-      const p1 = new THREE.PointLight(0xffffff, 0.5)
-      p1.position.set(220, 260, 280)
+      scene.add(new THREE.AmbientLight(0xffffff, 0.95))
+      const p1 = new THREE.PointLight(0xffffff, 0.7)
+      p1.position.set(200, 240, 260)
       scene.add(p1)
-      const p2 = new THREE.PointLight(0x8da4ff, 0.35)
-      p2.position.set(-220, -160, -220)
+      const p2 = new THREE.PointLight(0xdfe6ff, 0.4)
+      p2.position.set(-220, -140, -200)
       scene.add(p2)
     } catch {
       /* non-essential */
     }
   }, [size.w, size.h])
 
-  // Build node objects once (stable; focus / selection styling applied via mutation).
-  const buildNode = (n: GNode) => {
-    const color = colorForType(n.type)
-    const radius = 5
-    const group = new THREE.Group()
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color),
-      emissive: new THREE.Color(color),
-      emissiveIntensity: 0.25,
-      roughness: 0.5,
-      metalness: 0,
-      transparent: true,
-      opacity: 1,
-    })
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 28, 28), mat)
-    mesh.userData = { role: 'node', baseColor: color }
-    group.add(mesh)
+  // Build a node group: lit sphere + halo sprite + sprite label.
+  const buildNode = useCallback(
+    (n: GNode) => {
+      const color = colorForType(n.type)
+      const radius = 5.5
+      const group = new THREE.Group()
 
-    const label = new SpriteText(n.label)
-    label.color = '#e2e8f0'
-    label.textHeight = 4
-    label.fontWeight = '600'
-    ;(label as any).position.y = -(radius + 5)
-    label.userData = { role: 'label' }
-    ;(label as any).raycast = () => {}
-    group.add(label)
-    return group
-  }
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        emissive: new THREE.Color(color),
+        emissiveIntensity: 0.22,
+        roughness: 0.5,
+        metalness: 0,
+        transparent: true,
+        opacity: 1,
+      })
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 32), mat)
+      mesh.userData = { role: 'node', baseColor: color }
+      group.add(mesh)
 
-  // Focus / select mutation (no rebuild → no jitter).
+      const halo = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: getGlowTexture(),
+          color: new THREE.Color(color),
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          opacity: 0,
+        })
+      )
+      halo.scale.set(radius * 7, radius * 7, 1)
+      halo.userData = { role: 'halo' }
+      halo.raycast = () => {}
+      group.add(halo)
+
+      const label = new SpriteText(n.label)
+      label.color = '#334155'
+      label.textHeight = 4
+      label.fontWeight = '600'
+      ;(label as any).position.y = -(radius + 6)
+      label.userData = { role: 'label' }
+      ;(label as any).raycast = () => {}
+      group.add(label)
+
+      // tiny status badge (rendered as another sprite text)
+      if (n.status && n.status !== 'idle') {
+        const tag = new SpriteText(String(n.status).toUpperCase())
+        tag.color = STATUS_COLORS[n.status as keyof typeof STATUS_COLORS] ?? '#64748b'
+        tag.textHeight = 2.2
+        tag.fontWeight = '600'
+        ;(tag as any).position.y = -(radius + 11)
+        tag.userData = { role: 'status' }
+        ;(tag as any).raycast = () => {}
+        group.add(tag)
+      }
+
+      return group
+    },
+    [getGlowTexture]
+  )
+
+  // Focus / selection mutation — no rebuild, no jitter.
   useEffect(() => {
     const anyFocus = focusNodeIds.size > 0
     nodesArr.forEach((n) => {
@@ -172,33 +225,46 @@ export function DemoGraphCanvas3DInner({
         if (role === 'node') {
           const m = ch.material
           const base = ch.userData.baseColor
-          m.color.set(dim ? '#475569' : base)
+          m.color.set(dim ? '#cdd3e0' : base)
           m.emissive?.set(dim ? '#000000' : base)
-          m.emissiveIntensity = dim ? 0 : isSelected ? 0.55 : 0.25
+          m.emissiveIntensity = dim ? 0 : isSelected ? 0.4 : 0.22
           m.opacity = dim ? 0.18 : 1
           m.needsUpdate = true
+        } else if (role === 'halo') {
+          ch.material.opacity = isSelected ? 0.85 : inFocus ? 0.35 : 0
         } else if (role === 'label') {
-          ch.color = dim ? 'rgba(148,163,184,0.18)' : isSelected ? '#ffffff' : '#e2e8f0'
-          ch.textHeight = isSelected ? 5.2 : 4
+          ch.color = dim ? 'rgba(71,85,105,0.20)' : isSelected ? '#0f172a' : '#334155'
+          ch.textHeight = isSelected ? 5.4 : 4
+        } else if (role === 'status') {
+          ch.material.opacity = dim ? 0.18 : 1
         }
       })
     })
   }, [focusNodeIds, selectedNodeId, nodesArr])
 
   return (
-    <div ref={wrapRef} className="w-full h-full">
+    <div
+      ref={wrapRef}
+      className="w-full h-full"
+      style={{
+        background:
+          'radial-gradient(ellipse at 50% 42%, #ffffff 0%, #eef2fb 55%, #e6ebf6 100%)',
+      }}
+    >
       {size.w > 0 && size.h > 0 && (
         <ForceGraph3D
           ref={fgRef}
           width={size.w}
           height={size.h}
           graphData={graphData}
-          backgroundColor="rgba(0,0,0,0)"
+          backgroundColor="rgba(255,255,255,0)"
           showNavInfo={false}
           enableNodeDrag={false}
           warmupTicks={0}
           cooldownTicks={0}
           nodeThreeObject={buildNode as any}
+          linkCurvature={0.28}
+          linkCurveRotation={(l: GLink) => l.__curveRot ?? 0}
           linkColor={(l: GLink) => {
             const touchingSelected =
               !!selectedNodeId &&
@@ -206,17 +272,16 @@ export function DemoGraphCanvas3DInner({
             const inFocus =
               focusEdgeIds.has(l.__id) ||
               (focusNodeIds.has(idOf(l.source)) && focusNodeIds.has(idOf(l.target)))
-            if (touchingSelected) return '#ffffff'
-            if (inFocus) return '#a5b4fc'
-            return focusNodeIds.size > 0 ? 'rgba(148,163,184,0.10)' : 'rgba(148,163,184,0.40)'
+            if (touchingSelected) return '#4338ca'
+            if (inFocus) return '#6366f1'
+            return focusNodeIds.size > 0 ? 'rgba(110,124,160,0.18)' : 'rgba(110,124,160,0.55)'
           }}
           linkWidth={(l: GLink) => {
             const inFocus =
               focusEdgeIds.has(l.__id) ||
               (focusNodeIds.has(idOf(l.source)) && focusNodeIds.has(idOf(l.target)))
-            return inFocus ? 1.6 : 0.5
+            return inFocus ? 1.6 : 0.7
           }}
-          linkCurvature={0.2}
           onNodeClick={(n: any) => onSelect(n.id === selectedNodeId ? null : n.id)}
           onBackgroundClick={() => onSelect(null)}
         />
