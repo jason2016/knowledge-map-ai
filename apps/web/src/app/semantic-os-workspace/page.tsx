@@ -11,12 +11,22 @@ export const metadata: Metadata = {
 
 const NAV = [
   { id: 'overview', label: 'Overview' },
+  { id: 'recent-queries', label: 'Recent Queries' },
   { id: 'projects', label: 'Projects' },
   { id: 'review-queue', label: 'Review Queue' },
   { id: 'agent-tasks', label: 'Agent Tasks' },
   { id: 'feedback', label: 'Feedback' },
   { id: 'knowledge-map', label: 'Knowledge Map' },
   { id: 'mcp', label: 'MCP' },
+]
+
+const RECENT_QUERIES = [
+  {
+    question: 'What are the next actions for Semantic OS Workspace v0.1?',
+    type: 'action_planning',
+    confidence: 'High',
+    href: '/semantic-os-workspace/queries/demo',
+  },
 ]
 
 const SUMMARY = [
@@ -313,6 +323,43 @@ export default function SemanticOsWorkspacePage() {
                 </div>
               ))}
             </div>
+          </Section>
+
+          {/* 2b. Recent Queries (entry to Query Result Workspace) */}
+          <Section
+            id="recent-queries"
+            eyebrow="Per-query workspace"
+            title="Recent Queries"
+          >
+            <ul className="space-y-2">
+              {RECENT_QUERIES.map((q) => (
+                <li
+                  key={q.href}
+                  className="flex flex-col items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-slate-900">
+                      {q.question}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <span className="rounded-md bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-200">
+                        {q.type}
+                      </span>
+                      <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+                        confidence · {q.confidence}
+                      </span>
+                    </div>
+                  </div>
+                  <a
+                    href={q.href}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white ring-1 ring-violet-600/20 hover:bg-violet-700"
+                  >
+                    Open Query Result
+                    <span aria-hidden>→</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </Section>
 
           {/* 3. Project dashboard */}
