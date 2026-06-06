@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { Menu, Package, Loader2, Sparkles, Layers } from 'lucide-react'
+import { Menu, Package, Loader2, Sparkles, Layers, LayoutDashboard } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
@@ -353,6 +353,20 @@ export default function Page() {
               <span>Agent Workspace</span>
               <span aria-hidden>→</span>
             </Link>
+            <Link
+              href="/semantic-os-workspace"
+              title="Review-centered operator view: review queue, agent task packs, action feedback."
+              className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+              style={{
+                background: 'rgba(16,185,129,0.08)',
+                color: '#059669',
+                border: '1px solid rgba(16,185,129,0.25)',
+              }}
+            >
+              <LayoutDashboard size={11} />
+              <span>Semantic OS Workspace</span>
+              <span aria-hidden>→</span>
+            </Link>
             <span className="hidden lg:inline text-[11px]" style={{ color: '#9494ad' }}>
               by ClawShow AI
             </span>
@@ -406,6 +420,18 @@ export default function Page() {
           >
             <Sparkles size={11} />
             Agent
+          </Link>
+          <Link
+            href="/semantic-os-workspace"
+            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap"
+            style={{
+              background: 'rgba(16,185,129,0.08)',
+              color: '#059669',
+              border: '1px solid rgba(16,185,129,0.25)',
+            }}
+          >
+            <LayoutDashboard size={11} />
+            Workspace
           </Link>
         </div>
 
