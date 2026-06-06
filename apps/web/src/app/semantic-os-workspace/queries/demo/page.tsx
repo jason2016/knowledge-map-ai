@@ -492,7 +492,14 @@ export default function QueryResultWorkspacePage() {
                 </div>
               </dl>
               <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-                <Btn variant="primary">Create Writeback Candidate</Btn>
+                <a
+                  href="/semantic-os-workspace/reviews/demo"
+                  className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white ring-1 ring-violet-600/20 transition-colors hover:bg-violet-700"
+                >
+                  Open Candidate Review
+                  <span aria-hidden>→</span>
+                </a>
+                <Btn>Create Writeback Candidate</Btn>
                 <Btn variant="danger">Reject Writeback</Btn>
                 <Btn>Revise</Btn>
               </div>
@@ -565,7 +572,14 @@ export default function QueryResultWorkspacePage() {
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-                <Btn variant="primary">Copy Task Pack</Btn>
+                <a
+                  href="/semantic-os-workspace/agent-tasks/demo"
+                  className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white ring-1 ring-violet-600/20 transition-colors hover:bg-violet-700"
+                >
+                  Open Agent Task Pack
+                  <span aria-hidden>→</span>
+                </a>
+                <Btn>Copy Task Pack</Btn>
                 <Btn>Mark as Sent</Btn>
                 <Btn>Attach Result</Btn>
               </div>

@@ -447,7 +447,12 @@ export default function SemanticOsWorkspacePage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1.5">
-                          <Btn>Review</Btn>
+                          <a
+                            href="/semantic-os-workspace/reviews/demo"
+                            className="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-300 transition-colors hover:bg-slate-50"
+                          >
+                            Review
+                          </a>
                           <Btn variant="primary">Approve</Btn>
                           <Btn variant="danger">Reject</Btn>
                           <Btn>Revise</Btn>
@@ -580,7 +585,14 @@ export default function SemanticOsWorkspacePage() {
                 </div>
               </dl>
               <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-                <Btn variant="primary">Copy Prompt for Codex</Btn>
+                <a
+                  href="/semantic-os-workspace/agent-tasks/demo"
+                  className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white ring-1 ring-violet-600/20 transition-colors hover:bg-violet-700"
+                >
+                  Open Agent Task Pack
+                  <span aria-hidden>→</span>
+                </a>
+                <Btn>Copy Prompt for Codex</Btn>
                 <Btn>Open in VS Code</Btn>
                 <Btn>Save Feedback to Inbox</Btn>
                 <Btn>Create Action Feedback Candidate</Btn>
