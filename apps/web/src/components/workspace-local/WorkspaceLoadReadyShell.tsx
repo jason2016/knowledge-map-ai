@@ -6,6 +6,7 @@ import {
   type WorkspaceLoadResult,
 } from '@/types/workspace-load-ready'
 import { loadWorkspaceLoadReady } from '@/lib/workspaceLoadReadyLoader'
+import { ApprovedWorkspaceView } from './ApprovedWorkspaceView'
 import { BlockedRefusal } from './BlockedRefusal'
 
 /** Internal UI state machine for this shell. */
@@ -115,28 +116,14 @@ export function WorkspaceLoadReadyShell() {
     return <BlockedRefusal failures={state.failures} />
   }
 
-  // Approved — step 1 placeholder only. Do not render summary details yet.
+  // Approved — render the full workspace summary view. ApprovedWorkspaceView
+  // receives the verified manifest + summary and never fetches anything on
+  // its own; if the loader returned `blocked` we would never reach this
+  // branch, so private data never leaks to the blocked state.
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-700">
-      <div className="mx-auto max-w-3xl px-6 py-10">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-emerald-700">
-            Local Private Data — Approved Summary Export
-          </div>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-emerald-700">
-            LOCAL PRIVATE DATA — APPROVED SUMMARY EXPORT
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-700">
-            Approved package detected. Approved workspace rendering will be
-            implemented in step 2.
-          </p>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-            Source: Semantic OS workspace-load-ready package · mode: local_private
-            · export status: validated · operator review: approved · raw files
-            exported: 0
-          </p>
-        </div>
-      </div>
-    </div>
+    <ApprovedWorkspaceView
+      manifest={state.result.manifest}
+      summary={state.result.summary}
+    />
   )
 }
