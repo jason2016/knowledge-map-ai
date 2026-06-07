@@ -362,6 +362,43 @@ export default function SemanticOsWorkspacePage() {
             </ul>
           </Section>
 
+          {/* 2c. Local Private Workspace entry (does not load fixture here;
+                target page handles Public Demo Mode refusal). */}
+          <Section
+            id="local-private-workspace"
+            eyebrow="Local-only entry"
+            title="Local Private Workspace"
+          >
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-700">
+                    Load an approved Semantic OS workspace-load-ready package in
+                    Local Private Mode.
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                    Public demo default refuses to fetch. Requires
+                    <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10.5px] text-slate-700 ring-1 ring-slate-200">
+                      NEXT_PUBLIC_ENABLE_LOCAL_WORKSPACE=true
+                    </code>
+                    and a populated
+                    <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10.5px] text-slate-700 ring-1 ring-slate-200">
+                      apps/web/public/workspace-load-ready/
+                    </code>
+                    folder on the operator&rsquo;s machine.
+                  </p>
+                </div>
+                <a
+                  href="/semantic-os-workspace/local"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white ring-1 ring-violet-600/20 hover:bg-violet-700"
+                >
+                  Open Local Private Workspace
+                  <span aria-hidden>→</span>
+                </a>
+              </div>
+            </div>
+          </Section>
+
           {/* 3. Project dashboard */}
           <Section id="projects" eyebrow="Workspace" title="Project Dashboard">
             <div className="grid gap-4 lg:grid-cols-3">

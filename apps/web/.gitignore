@@ -46,3 +46,7 @@ next-env.d.ts
 # See docs/setup/2026-05-30-context-pack-exchange-setup.md
 /public/context-packs
 /public/context-packs.backup-before-exchange
+
+# Workspace Load Ready package — local-only sanitized fixture bridge.
+# See docs/setup/2026-06-07-workspace-load-ready-setup.md
+/public/workspace-load-ready
