@@ -93,7 +93,7 @@ export function WorkspaceLoadReadyShell() {
 
   if (state.kind === 'loading') {
     return (
-      <div className="min-h-screen w-full bg-slate-50 text-slate-700">
+      <div className="h-full w-full overflow-y-auto bg-slate-50 text-slate-700">
         <div className="mx-auto max-w-3xl px-6 py-10">
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-widest text-violet-600">

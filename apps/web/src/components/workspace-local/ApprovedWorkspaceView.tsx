@@ -162,7 +162,11 @@ export function ApprovedWorkspaceView({ manifest, summary }: Props) {
   const activity = asArray(summary?.activity)
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-700">
+    // The app's root <body> is `overflow-hidden` (so the homepage can run a
+    // full-screen graph). We therefore scroll INSIDE this component so the
+    // approved view always reaches its long list of sections on phones and
+    // desktop alike.
+    <div className="h-full w-full overflow-y-auto bg-slate-50 text-slate-700">
       <div className="mx-auto max-w-5xl space-y-12 px-6 py-10">
         {/* ── Top boundary banner ──────────────────────────────────── */}
         <header className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">

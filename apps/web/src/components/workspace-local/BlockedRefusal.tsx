@@ -43,7 +43,9 @@ export function BlockedRefusal({ failures, publicDemoMode = false }: Props) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-700">
+    // Scroll inside the panel: the app <body> is overflow-hidden, so a long
+    // gate checklist would otherwise be clipped on smaller viewports.
+    <div className="h-full w-full overflow-y-auto bg-slate-50 text-slate-700">
       <div className="mx-auto max-w-3xl px-6 py-10">
         {/* Top label per integration contract */}
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
